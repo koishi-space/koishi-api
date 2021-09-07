@@ -1,0 +1,4 @@
+{
+    "jwtpk": "Okkju1256",
+    "db": "mongodb://localhost/koishi_test"
+}
