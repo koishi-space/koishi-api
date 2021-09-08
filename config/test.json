@@ -1,4 +1,5 @@
 {
     "jwtpk": "Okkju1256",
-    "db": "mongodb://localhost/koishi_test"
+    "db": "mongodb://localhost/koishi_test",
+    "email": "diwjodij290328n2903"
 }

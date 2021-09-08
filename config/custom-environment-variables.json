@@ -1,4 +1,5 @@
 {
-    "jwtpk": "koishi_jwtpk",
-    "db": "koishi_db"
+    "jwtpk": "KOISHI_JWTPK",
+    "db": "KOISHI_DB",
+    "email": "KOISHI_EMAIL"
 }

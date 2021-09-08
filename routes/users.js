@@ -4,8 +4,10 @@ const express = require("express");
 const Joi = require("joi");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
+const mailer = require("../services/mailer");
 const { User, validateUser } = require("../models/user");
 const validateObjID = require("../middleware/validateObjID");
+const decode = require("jwt-decode");
 const router = express.Router();
 
 router.get("/", [auth, admin], async (req, res) => {
@@ -35,7 +37,7 @@ router.post("/", async (req, res) => {
   if (error) return res.status(400).send(error.details[0].message);
 
   // Check if email doesnt already exist
-  let email = await User.findOne({email: req.body.email});
+  let email = await User.findOne({ email: req.body.email });
   if (email) return res.status(400).send("This email is already registered.");
 
   // If user is unique, create
@@ -43,13 +45,42 @@ router.post("/", async (req, res) => {
   // -> Hash password
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(user.password, salt);
-  if (!user.isAdmin) user.isAdmin = false;
+  user.isAdmin = false;
+  user.status = "pending";
+
+  let verificationCode;
+  do {
+    verificationCode = Math.floor(Math.random() * 1000000);
+  } while (verificationCode.toString().length !== 6);
+  user.verificationCode = verificationCode.toString();
+  await mailer.sendRegistrationVerificationEmail(user);
+
   user = await user.save(); // save user to database
 
   // generate token for newly registered user
   let token = user.generateAuthToken();
-  user = _.pick(user, ["_id", "name", "email", "isAdmin"]);
-  res.status(200).header("x-auth-token", token).send(user);
+  user = _.pick(user, ["_id", "name", "email"]);
+  res.status(200).header("x-auth-token", token).send("User registered.");
+});
+
+router.post("/verify", [auth], async (req, res) => {
+  let tokenUser = decode(req.header("x-auth-token"));
+  let dbUser = await User.findOne({email: tokenUser.email});
+
+  if (dbUser.status !== "pending") return res.status(400).send("User has already been verified.");
+  
+  if (dbUser.verificationCode === req.body.verificationCode) {
+    dbUser.status = "verified";
+    let verifiedUser = await User.findByIdAndUpdate(
+      dbUser._id,
+      _.omit(dbUser, ["_id", "__v", "verificationCode"]),
+      {new: true},
+    );
+    return res.status(200).header("x-auth-token", verifiedUser.generateAuthToken()).send("User verified");
+  }
+
+  res.status(400).send("Wrong verification code.");
+
 });
 
 // FOR NOW DISABLED - needs security enhancement
@@ -59,7 +90,7 @@ router.post("/", async (req, res) => {
 //   if (!await User.findById(id)) return res.status(404).send("User was not found.");
 //   if (await checkIfDuplicite("email", req.body)) return res.status(400).send("This email is already registered.");
 //   if (error) return res.status(400).send(error.details[0].message);
-  
+
 //   user = await User.findByIdAndUpdate(
 //     id,
 //     _.omit(req.body, ["_id", "__v"]),
