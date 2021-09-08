@@ -60,7 +60,7 @@ router.post("/", async (req, res) => {
   // generate token for newly registered user
   let token = user.generateAuthToken();
   user = _.pick(user, ["_id", "name", "email"]);
-  res.status(200).header("x-auth-token", token).send("User registered.");
+  res.status(200).send(token);
 });
 
 router.post("/verify", [auth], async (req, res) => {
@@ -76,7 +76,7 @@ router.post("/verify", [auth], async (req, res) => {
       _.omit(dbUser, ["_id", "__v", "verificationCode"]),
       {new: true},
     );
-    return res.status(200).header("x-auth-token", verifiedUser.generateAuthToken()).send("User verified");
+    return res.status(200).send(verifiedUser.generateAuthToken());
   }
 
   res.status(400).send("Wrong verification code.");
