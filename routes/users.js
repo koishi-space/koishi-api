@@ -41,19 +41,20 @@ router.post("/", async (req, res) => {
   if (email) return res.status(400).send("This email is already registered.");
 
   // If user is unique, create
-  user = new User(req.body);
+  let user = new User(req.body);
   // -> Hash password
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(user.password, salt);
   user.isAdmin = false;
   user.status = "pending";
 
-  let verificationCode;
-  do {
-    verificationCode = Math.floor(Math.random() * 1000000);
-  } while (verificationCode.toString().length !== 6);
+  const genRanHex = size => [...Array(size)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  let verificationCode = genRanHex(32);
   user.verificationCode = verificationCode.toString();
+
+  console.log("Sending verificatoin email");
   await mailer.sendRegistrationVerificationEmail(user);
+  console.log("Email sent");
 
   user = await user.save(); // save user to database
 
@@ -63,24 +64,23 @@ router.post("/", async (req, res) => {
   res.status(200).send(token);
 });
 
-router.post("/verify", [auth], async (req, res) => {
-  let tokenUser = decode(req.header("x-auth-token"));
-  let dbUser = await User.findOne({email: tokenUser.email});
-
-  if (dbUser.status !== "pending") return res.status(400).send("User has already been verified.");
-  
-  if (dbUser.verificationCode === req.body.verificationCode) {
-    dbUser.status = "verified";
-    let verifiedUser = await User.findByIdAndUpdate(
-      dbUser._id,
-      _.omit(dbUser, ["_id", "__v", "verificationCode"]),
-      {new: true},
-    );
-    return res.status(200).send(verifiedUser.generateAuthToken());
+router.post("/verify", async (req, res) => {
+  const { error } = Joi.object({verificationCode: Joi.string().pattern(/^[0-9a-f]{32}$/).required()}).validate(req.body);
+  if (error) return res.status(404).send("Invalid token.");
+  let dbUser = await User.findOne({verificationCode: req.body.verificationCode});
+  if (!dbUser) res.status(400).send("Invalid token.");
+  else {
+    if (dbUser.status !== "pending") return res.status(400).send("User has already been verified.");
+    else {
+      dbUser.status = "verified";
+      let verifiedUser = await User.findByIdAndUpdate(
+        dbUser._id,
+        _.omit(dbUser, ["_id", "__v", "verificationCode"]),
+        {new: true},
+      );
+      return res.status(200).send(verifiedUser.generateAuthToken());
+    }
   }
-
-  res.status(400).send("Wrong verification code.");
-
 });
 
 // FOR NOW DISABLED - needs security enhancement

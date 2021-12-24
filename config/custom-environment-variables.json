@@ -1,5 +1,6 @@
 {
     "jwtpk": "KOISHI_JWTPK",
     "db": "KOISHI_DB",
-    "email": "KOISHI_EMAIL"
+    "email": "KOISHI_EMAIL",
+    "web_url": "KOISHI_WEB_URL"
 }

@@ -12,6 +12,8 @@ var transporter = nodemailer.createTransport({
 });
 
 module.exports.sendRegistrationVerificationEmail = async (user) => {
+  let verificationUrl = config.get("web_url") + `/verify?token=${user.verificationCode}`;
+  
   let content = {
     from: "koishi@email.cz",
     to: user.email,
@@ -61,11 +63,9 @@ module.exports.sendRegistrationVerificationEmail = async (user) => {
     \
         .code {\
           color: rgb(90, 90, 90);\
-          font-size: 50px;\
+          font-size: 20px;\
           margin-top: 0;\
           margin-bottom: 20px;\
-          letter-spacing: 4px;\
-          letter-spacing: 4px;\
         }\
     \
         .link {\
@@ -86,9 +86,9 @@ module.exports.sendRegistrationVerificationEmail = async (user) => {
           <p class=\"text\">\
             Hi,<br />\
             thank you for signing with Koishi UwU.<br />\
-            Use the code below to verify your account:<br />\
+            Click the link below to verify your account:<br />\
           </p>\
-          <p class=\"code\">${user.verificationCode}</p>\
+          <a href=\"${verificationUrl}\" class=\"code\">${verificationUrl}</p>\
           <div class=\"divider\"></div>\
           <p></p>\
           <a href=\"https://koishi-space.herokuapp.com\" class=\"link\">\

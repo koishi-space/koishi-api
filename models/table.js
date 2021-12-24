@@ -1,15 +1,16 @@
 const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
-const config = require("config");
 const Joi = require("joi");
+const { tableDataValueJoiSchema } = require("./tableDataValue");
+const { tableModelValueJoiSchema } = require("./tableModelValue");
 
 // Mongodb data schema
-const userSchema = new mongoose.Schema({
-  userId: mongoose.Schema.Types.ObjectId,
+const tableSchema = new mongoose.Schema({
+  ownerId: mongoose.Schema.Types.ObjectId,
+  tableName: String,
   dataModel: [
     {
       columnName: String, // HASHED
-      dataType: String, // number/date/time
+      dataType: String, // string/number/date/time
     },
   ],
   data: [
@@ -20,53 +21,20 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
-/**
- * JsonWebToken generation
- * contents:
- *  - _id (MongoDB ObjectId)
- *  - name (string)
- *  - isAdmin (boolean)
- *
- * @return {JsonWebToken}
- */
-userSchema.methods.generateAuthToken = function () {
-  const token = jwt.sign(
-    {
-      name: this.name,
-      email: this.email,
-      status: this.status,
-      isAdmin: this.isAdmin,
-    },
-    config.get("jwtpk")
-  );
-
-  return token;
-};
-
-/**
- * Joi validation for "user" data structure
- *  - NOTE: this function does not test if name or email is already registered
- *
- * @param {object} user tested user object
- * @return {boolean} true - object is valid
- * @return {boolean} false - object is invalid
- */
-function validateUser(user) {
+function validateTable(payload) {
   const schema = Joi.object({
     _id: Joi.any(),
     __v: Joi.any(),
-    name: Joi.string().min(2).max(10).required(),
-    email: Joi.string().min(5).max(50).email().required(),
-    password: Joi.string().min(8).max(20).required(),
-    status: Joi.string(),
-    isAdmin: Joi.boolean(),
-    verificationCode: Joi.string(),
+    ownerId: Joi.any(),
+    tableName: Joi.string().required(),
+    dataModel: Joi.array().items(tableModelValueJoiSchema).required(),
+    data: Joi.array().items(tableDataValueJoiSchema).required(),
   });
 
-  return schema.validate(user);
+  return schema.validate(payload);
 }
 
-const User = mongoose.model("User", userSchema);
+const Table = mongoose.model("Table", tableSchema);
 
-module.exports.User = User;
-module.exports.validateUser = validateUser;
+module.exports.Table = Table;
+module.exports.validateTable = validateTable;

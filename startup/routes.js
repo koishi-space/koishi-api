@@ -10,12 +10,18 @@ const auth = require("../routes/auth");
 const users = require("../routes/users");
 const logs = require("../routes/logs");
 const ping = require("../routes/ping");
+const tables = require("../routes/tables");
+const collections = require("../routes/collections");
 
 const error = require("../middleware/error");
 
+const CORS_CONFIG = {
+  origin: "*",
+};
+
 module.exports = function (app) {
   // Middleware config
-  app.use(cors());
+  app.use(cors(CORS_CONFIG));
   app.use(express.urlencoded({extended: true}));
   app.use(express.json());
   
@@ -27,6 +33,8 @@ module.exports = function (app) {
   app.use("/auth", auth);
   app.use("/users", users);
   app.use("/logs", logs);
+  app.use("/tables", tables);
+  app.use("/collections", collections);
 
   // Others
   app.use(error);
