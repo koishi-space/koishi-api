@@ -21,7 +21,7 @@ function validateCollection(payload) {
   const schema = Joi.object({
     _id: Joi.any(),
     __v: Joi.any(),
-    title: Joi.string().required(),
+    title: Joi.string().max(30).required(),
     owner: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
     model: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
     data: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),

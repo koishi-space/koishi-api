@@ -7,10 +7,12 @@ const collectionDataSchema = new mongoose.Schema({
     ref: "Collection",
   },
   value: [
-    {
-      column: String, // <- Hash, represents to which column this data cell belongs to
-      data: String, // <- has to match the data type of its column
-    },
+    [
+      {
+        column: String, // <- Hash, represents to which column this data cell belongs to
+        data: String, // <- has to match the data type of its column
+      },
+    ]
   ],
 });
 
