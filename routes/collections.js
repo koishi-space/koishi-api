@@ -1,5 +1,6 @@
 const express = require("express");
 const _ = require("lodash");
+const Joi = require("joi");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const validateObjID = require("../middleware/validateObjID");
@@ -10,32 +11,35 @@ const {
   validateCollectionModel,
 } = require("../models/collectionModel");
 const { CollectionData } = require("../models/collectionData");
-
-// TODO: Implement data hashing for user's privacy
-// TODO: implement custom data structure validation (when adding new record to the collection data struct)
+const { ActionToken } = require("../models/actionToken");
 
 // ===Collection===
-// Get the whole, populated collection struct
 router.get("/:id", [validateObjID, auth], async (req, res) => {
   const userId = await getUserIdByEmail(req.user.email);
-  const collection = await Collection.findOne({
-    _id: req.params.id,
-    owner: userId,
-  })
-    .populate("model")
-    .populate("data");
+  let collection;
+  if (req.query.noPopulate) {
+    collection = await Collection.findOne({
+      _id: req.params.id,
+      owner: userId,
+    });
+  } else {
+    collection = await Collection.findOne({
+      _id: req.params.id,
+      owner: userId,
+    })
+      .populate("model")
+      .populate("data");
+  }
   if (!collection) return res.status(404).send("Collection not found.");
   else return res.status(200).send(collection);
 });
 
-// Get all user's collections
 router.get("/", [auth], async (req, res) => {
   const userId = await getUserIdByEmail(req.user.email);
   const collections = await Collection.find({ owner: userId });
   res.status(200).send(collections);
 });
 
-// Create new collection
 router.post("/", [auth], async (req, res) => {
   // Validate collection title
   if (!(req.body.title && req.body.title.length <= 20))
@@ -75,8 +79,61 @@ router.post("/", [auth], async (req, res) => {
   return res.status(201).send(collection);
 });
 
+router.put("/:id", [validateObjID, auth], async (req, res) => {
+  // Validate PUT request payload (only editable field so far is "title")
+  const {error} = Joi.object({
+    title: Joi.string().max(30).required(),
+  }).validate(req.body);
+  if (error) return res.status(400).send(error.details[0].message);
+  
+  // Find collection and check ownership
+  const userId = await getUserIdByEmail(req.user.email);
+  let collection = await Collection.findOne({
+    _id: req.params.id,
+    owner: userId,
+  });
+  if (!collection) return res.status(404).send("Collection not found.");
+
+  collection.title = req.body.title;
+  collection = await Collection.findByIdAndUpdate(collection._id, _.omit(collection, ["_id", "__v"]), {new: true});
+  return res.status(200).send(collection);
+});
+
+router.delete("/:id", [validateObjID, auth], async (req, res) => {
+  // First time user sends a collection DELETE request, he gets a confirmation token.
+  // In order to delete the desired collection, he has to repeat the API call, together with the delete action token
+  let userId = await getUserIdByEmail(req.user.email);
+  let collection = await Collection.findOne({
+    _id: req.params.id,
+    owner: userId,
+  });
+  if (!collection) return res.status(404).send("Collection not found.");
+
+  if (!req.query.actionToken) {
+    let deleteToken = new ActionToken({
+      purpose: `Delete collection "${collection.title}"`,
+      userId: userId,
+      targetId: collection._id,
+    });
+    await deleteToken.save();
+    return res.status(202).send(deleteToken);
+  } else {
+    let deleteToken = await ActionToken.findOne({
+      _id: req.query.actionToken,
+      userId: userId,
+      targetId: collection._id,
+    });
+    if (!deleteToken)
+      return res
+        .status(404)
+        .send("No valid token found to approve this action.");
+    await Collection.findByIdAndDelete(deleteToken.targetId);
+    await ActionToken.findByIdAndDelete(deleteToken._id);
+    return res.status(200).send("Collection deleted.");
+  }
+});
+
 // ===CollectionModel===
-// Get the collection model struct
 router.get("/:id/model", [validateObjID, auth], async (req, res) => {
   // Get the parent (collection)
   const userId = await getUserIdByEmail(req.user.email);
@@ -96,7 +153,6 @@ router.get("/:id/model", [validateObjID, auth], async (req, res) => {
 });
 
 // ===CollectionData===
-// Get the collection data struct
 router.get("/:id/data", [validateObjID, auth], async (req, res) => {
   // Get the parent (collection)
   const userId = await getUserIdByEmail(req.user.email);
@@ -115,7 +171,6 @@ router.get("/:id/data", [validateObjID, auth], async (req, res) => {
   else return res.status(200).send(collectionData);
 });
 
-// Adds new row to the collection data struct
 router.post("/:id/data", [validateObjID, auth], async (req, res) => {
   // Get the parent collection
   const userId = await getUserIdByEmail(req.user.email);
@@ -144,7 +199,6 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
   res.status(200).send("Added new row.");
 });
 
-// Removes one row from the collection data struct (and returns the updated version if specified so via the "getUpdated" query parameter)
 router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
   // Get the parent collection
   const userId = await getUserIdByEmail(req.user.email);

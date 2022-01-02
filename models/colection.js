@@ -5,7 +5,7 @@ const collectionSchema = new mongoose.Schema({
   title: String,
   owner: {
     type: mongoose.Schema.Types.ObjectId,
-    tef: "User",
+    ref: "User",
   },
   model: {
     type: mongoose.Schema.Types.ObjectId,
