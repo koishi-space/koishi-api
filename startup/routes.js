@@ -11,6 +11,7 @@ const users = require("../routes/users");
 const logs = require("../routes/logs");
 const ping = require("../routes/ping");
 const collections = require("../routes/collections");
+const tools = require("../routes/tools");
 
 const error = require("../middleware/error");
 
@@ -33,6 +34,7 @@ module.exports = function (app) {
   app.use("/users", users);
   app.use("/logs", logs);
   app.use("/collections", collections);
+  app.use("/tools", tools);
 
   // Others
   app.use(error);
