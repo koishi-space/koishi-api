@@ -12,14 +12,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hendrychjan/Koishi.git"
+    "url": "git+https://github.com/hendrychjan/koishi-api.git"
   },
   "author": "Jan Hendrych",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/hendrychjan/Koishi/issues"
+    "url": "https://github.com/hendrychjan/koishi-api/issues"
   },
-  "homepage": "https://github.com/hendrychjan/Koishi#readme",
+  "homepage": "https://github.com/hendrychjan/koishi-api#readme",
   "devDependencies": {
     "jest": "^27.1.0",
     "morgan": "^1.10.0",

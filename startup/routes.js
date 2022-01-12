@@ -1,9 +1,11 @@
 const express = require("express");
+const helmet = require("helmet");
 const cors = require("cors");
 let morgan;
 
-if (process.env.NODE_ENV !== "production")
-  morgan = require("morgan");
+if (process.env.NODE_ENV !== "production") morgan = require("morgan");
+
+if (process.env.NODE_ENV === "development") app.use(helmet());
 
 // Routes
 const auth = require("../routes/auth");
@@ -22,12 +24,11 @@ const CORS_CONFIG = {
 module.exports = function (app) {
   // Middleware config
   app.use(cors(CORS_CONFIG));
-  app.use(express.urlencoded({extended: true}));
+  app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
-  
-  if (process.env.NODE_ENV !== "production")
-    app.use(morgan("tiny"));
-  
+
+  if (process.env.NODE_ENV !== "production") app.use(morgan("tiny"));
+
   // Router
   app.use("/ping", ping);
   app.use("/auth", auth);
