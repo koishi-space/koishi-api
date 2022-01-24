@@ -11,7 +11,10 @@ const {
   validateCollectionModel,
 } = require("../models/collectionModel");
 const { CollectionData } = require("../models/collectionData");
-const { CollectionSettings } = require("../models/collectionSettings");
+const {
+  CollectionSettings,
+  validateCollectionSettings,
+} = require("../models/collectionSettings");
 const { ActionToken } = require("../models/actionToken");
 
 // ===Collection===
@@ -263,6 +266,10 @@ router.get("/:id/settings", [validateObjID, auth], async (req, res) => {
 });
 
 router.put("/:id/settings", [validateObjID, auth], async (req, res) => {
+  // Validate
+  const { error } = validateCollectionSettings(req.body);
+  if (error) return res.status(400).send(error.details[0].message);
+
   // Get the parent (collection)
   const userId = await getUserIdByEmail(req.user.email);
   const collection = await Collection.findOne({
@@ -271,13 +278,33 @@ router.put("/:id/settings", [validateObjID, auth], async (req, res) => {
   });
   if (!collection) return res.status(404).send("Collection not found.");
 
-  // Get the collection model
-  const collectionModel = await CollectionModel.findOne({
+  // Save the changes
+  let collectionSettings = await CollectionSettings.findOneAndUpdate({parent: collection._id}, _.omit(req.body, ["_id", "__v", "parent"]), {new: true});
+  if (!collectionSettings)
+    return res.status(404).send("This collection has no settings struct.");
+  else return res.status(200).send(collectionSettings);
+});
+
+router.put("/:id/settings/reset", [validateObjID, auth], async (req, res) => {
+  // Get the parent (collection)
+  const userId = await getUserIdByEmail(req.user.email);
+  let collection = await Collection.findOne({
+    _id: req.params.id,
+    owner: userId,
+  });
+  if (!collection) return res.status(404).send("Collection not found.");
+
+  // Delete the old settings object
+  await CollectionSettings.findByIdAndRemove(collection.settings);
+
+  // Create new, save it and edit the parent collection object
+  let newSettings = new CollectionSettings({
     parent: collection._id,
   });
-  if (!collectionModel)
-    return res.status(404).send("This collection has no model struct.");
-  else return res.status(200).send(collectionModel);
+  await newSettings.save();
+  collection.settings = newSettings._id;
+  await Collection.findByIdAndUpdate(collection._id, _.omit(collection, ["_id", "__v"]));
+  return res.status(200).send("Collection settings reseted to default.");
 });
 
 async function getUserIdByEmail(email) {

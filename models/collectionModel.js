@@ -10,6 +10,7 @@ const collectionModelSchema = new mongoose.Schema({
     {
       columnName: String, // <- Hashed
       dataType: String, // <- text/number/date/time/bool
+      unit: String,
     },
   ],
 });
@@ -18,6 +19,7 @@ function validateCollectionModel(payload, validateValues) {
   const valueSchema = Joi.object({
     columnName: Joi.string().max(20).required(),
     dataType: Joi.string().valid("text", "number", "date", "time","bool").required(),
+    unit: Joi.string().max(5),
   });
   let schema;
 

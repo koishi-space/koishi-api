@@ -5,8 +5,6 @@ let morgan;
 
 if (process.env.NODE_ENV !== "production") morgan = require("morgan");
 
-if (process.env.NODE_ENV === "development") app.use(helmet());
-
 // Routes
 const auth = require("../routes/auth");
 const users = require("../routes/users");
@@ -22,12 +20,17 @@ const CORS_CONFIG = {
 };
 
 module.exports = function (app) {
+  
   // Middleware config
   app.use(cors(CORS_CONFIG));
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
-
+  
+  // Middleware that is only active in production environment
+  // Morgan - request logs
+  // Helmet - route protection
   if (process.env.NODE_ENV !== "production") app.use(morgan("tiny"));
+  if (process.env.NODE_ENV === "development") app.use(helmet());
 
   // Router
   app.use("/ping", ping);
