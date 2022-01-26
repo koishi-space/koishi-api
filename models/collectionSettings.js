@@ -73,6 +73,8 @@ function validateCollectionSettings(payload) {
   });
 
   const barSchema = Joi.object({
+    _id: Joi.any(),
+    __v: Joi.any(),
     dataKey: Joi.string().allow("").required(),
     fill: Joi.string().regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/).required(),
     unit: Joi.string().allow("").required(),
