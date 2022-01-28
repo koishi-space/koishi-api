@@ -47,6 +47,7 @@ const collectionSettingsSchema = new mongoose.Schema({
           unit: { type: String, default: "" },
           name: { type: String, default: "" },
           stackId: { type: String, default: "" },
+          hide: { type: Boolean, default: false },
         },
       ],
       default: [],
@@ -80,6 +81,7 @@ function validateCollectionSettings(payload) {
     unit: Joi.string().allow("").required(),
     name: Joi.string().allow("").required(),
     stackId: Joi.string().allow("").required(),
+    hide: Joi.boolean().required(),
   });
 
   const schema = Joi.object({
