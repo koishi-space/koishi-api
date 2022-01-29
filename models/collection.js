@@ -15,10 +15,12 @@ const collectionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "CollectionData",
   },
-  settings: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "CollectionSettings",
-  }
+  settings: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CollectionSettings",
+    },
+  ],
 });
 
 function validateCollection(payload) {
@@ -26,10 +28,18 @@ function validateCollection(payload) {
     _id: Joi.any(),
     __v: Joi.any(),
     title: Joi.string().max(30).required(),
-    owner: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
-    model: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
-    data: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
-    settings: Joi.string().regex(/^[0-9a-fA-F]{24}$/).required(),
+    owner: Joi.string()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .required(),
+    model: Joi.string()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .required(),
+    data: Joi.string()
+      .regex(/^[0-9a-fA-F]{24}$/)
+      .required(),
+    settings: Joi.array()
+      .items(Joi.string().regex(/^[0-9a-fA-F]{24}$/))
+      .required(),
   });
 
   return schema.validate(payload);

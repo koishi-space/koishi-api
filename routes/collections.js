@@ -73,7 +73,8 @@ router.post("/", [auth], async (req, res) => {
     parent: collection._id,
   });
   await collectionSettings.save();
-  collection.settings = collectionSettings._id;
+  collection.settings = [];
+  collection.settings[0] = collectionSettings._id;
 
   // Create and set collection model if it is valid
   const { error } = validateCollectionModel(req.body.model, true);
@@ -146,7 +147,7 @@ router.delete("/:id", [validateObjID, auth], async (req, res) => {
     await Collection.findByIdAndDelete(deleteToken.targetId);
     await CollectionModel.findOneAndDelete({ parent: deleteToken.targetId });
     await CollectionData.findOneAndDelete({ parent: deleteToken.targetId });
-    await CollectionSettings.findOneAndDelete({ parent: deleteToken.targetId });
+    await CollectionSettings.deleteMany({ parent: deleteToken.targetId });
     await ActionToken.findByIdAndDelete(deleteToken._id);
     return res.status(200).send("Collection deleted.");
   }
@@ -257,7 +258,7 @@ router.get("/:id/settings", [validateObjID, auth], async (req, res) => {
   if (!collection) return res.status(404).send("Collection not found.");
 
   // Get the collection settings
-  const collectionSettings = await CollectionSettings.findOne({
+  const collectionSettings = await CollectionSettings.find({
     parent: collection._id,
   });
   if (!collectionSettings)
@@ -265,24 +266,26 @@ router.get("/:id/settings", [validateObjID, auth], async (req, res) => {
   else return res.status(200).send(collectionSettings);
 });
 
-router.put("/:id/settings", [validateObjID, auth], async (req, res) => {
-  // Validate
-  const { error } = validateCollectionSettings(req.body);
-  if (error) return res.status(400).send(error.details[0].message);
-
+router.post("/:id/settings/new", [validateObjID, auth], async (req, res) => {
   // Get the parent (collection)
   const userId = await getUserIdByEmail(req.user.email);
-  const collection = await Collection.findOne({
+  let collection = await Collection.findOne({
     _id: req.params.id,
     owner: userId,
   });
   if (!collection) return res.status(404).send("Collection not found.");
 
-  // Save the changes
-  let collectionSettings = await CollectionSettings.findOneAndUpdate({parent: collection._id}, _.omit(req.body, ["_id", "__v", "parent"]), {new: true});
-  if (!collectionSettings)
-    return res.status(404).send("This collection has no settings struct.");
-  else return res.status(200).send(collectionSettings);
+  // Create new, save it and edit the parent collection object
+  let newSettings = new CollectionSettings({
+    parent: collection._id,
+  });
+  await newSettings.save();
+  collection.settings.push(newSettings._id);
+  await Collection.findByIdAndUpdate(
+    collection._id,
+    _.omit(collection, ["_id", "__v"])
+  );
+  return res.status(200).send(newSettings);
 });
 
 router.put("/:id/settings/reset", [validateObjID, auth], async (req, res) => {
@@ -295,17 +298,103 @@ router.put("/:id/settings/reset", [validateObjID, auth], async (req, res) => {
   if (!collection) return res.status(404).send("Collection not found.");
 
   // Delete the old settings object
-  await CollectionSettings.findByIdAndRemove(collection.settings);
+  await CollectionSettings.deleteMany({ parent: collection._id });
 
   // Create new, save it and edit the parent collection object
   let newSettings = new CollectionSettings({
     parent: collection._id,
   });
   await newSettings.save();
-  collection.settings = newSettings._id;
-  await Collection.findByIdAndUpdate(collection._id, _.omit(collection, ["_id", "__v"]));
+  collection.settings = [];
+  collection.settings[0] = newSettings._id;
+  await Collection.findByIdAndUpdate(
+    collection._id,
+    _.omit(collection, ["_id", "__v"])
+  );
   return res.status(200).send("Collection settings reseted to default.");
 });
+
+router.put(
+  "/:id/settings/:settings_id",
+  [validateObjID, auth],
+  async (req, res) => {
+    // Validate
+    const { error } = validateCollectionSettings(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
+
+    // Get the parent (collection)
+    const userId = await getUserIdByEmail(req.user.email);
+    const collection = await Collection.findOne({
+      _id: req.params.id,
+      owner: userId,
+    });
+    if (!collection) return res.status(404).send("Collection not found.");
+
+    // Save the changes
+    let collectionSettings = await CollectionSettings.findOneAndUpdate(
+      { _id: req.params.settings_id, parent: collection._id },
+      _.omit(req.body, ["_id", "__v", "parent"]),
+      { new: true }
+    );
+    if (!collectionSettings)
+      return res.status(404).send("Collection settings preset not found.");
+    return res.status(200).send(collectionSettings);
+  }
+);
+
+router.patch(
+  "/:id/settings/:settings_id/rename",
+  [validateObjID, auth],
+  async (req, res) => {
+    // Get the parent (collection)
+    const userId = await getUserIdByEmail(req.user.email);
+    let collection = await Collection.findOne({
+      _id: req.params.id,
+      owner: userId,
+    });
+    if (!collection) return res.status(404).send("Collection not found.");
+
+    // Validate the new name
+    const payloadSchema = Joi.object({
+      name: Joi.string().max(30).required(),
+    });
+    const { error } = payloadSchema.validate(req.body);
+    if (error) return res.status(400).send(error.details[0].message);
+
+    let collectionSettings = await CollectionSettings.findOneAndUpdate(
+      { _id: req.params.settings_id, parent: req.params.id },
+      req.body
+    );
+    if (!collectionSettings)
+      return res.status(404).send("Collection settings preset not found.");
+    return res.status(200).send("Updated settings preset name");
+  }
+);
+
+router.delete(
+  "/:id/settings/:settings_id", [validateObjID, auth], async (req, res) => {
+    // Get the parent (collection)
+    const userId = await getUserIdByEmail(req.user.email);
+    let collection = await Collection.findOne({
+      _id: req.params.id,
+      owner: userId,
+    });
+    if (!collection) return res.status(404).send("Collection not found.");
+
+    // // Delete the collection settings
+    let collectionSettings = await CollectionSettings.findOneAndDelete({_id: req.params.settings_id, parent: req.params.id});
+    if (!collectionSettings) return res.status(404).send("Collection settings preset not found.");
+
+    // Remove the collection settings from collection object
+    for (let s in collection.settings)
+      if (collection.settings[s].toString() === req.params.settings_id) {
+        collection.settings.splice(s, 1);
+        break;
+      }
+    await Collection.findByIdAndUpdate(collection._id, _.omit(collection, ["_id, __v"]));
+    return res.status(200).send("Settings preset deleted.");
+  }
+)
 
 async function getUserIdByEmail(email) {
   let user = await User.findOne({

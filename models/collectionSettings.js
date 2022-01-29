@@ -6,6 +6,7 @@ const collectionSettingsSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Collection",
   },
+  name: { type: String, default: "New settings" },
   composedGraph: {
     xAxis: {
       dataKey: { type: String, default: "" },
@@ -99,21 +100,27 @@ function validateCollectionSettings(payload) {
     allowDecimals: Joi.boolean().required(),
     allowDataOverflow: Joi.boolean().required(),
     range: Joi.object({
-      from: Joi.string().allow("auto", "dataMin", "dataMax", "custom").required(),
+      from: Joi.string()
+        .allow("auto", "dataMin", "dataMax", "custom")
+        .required(),
       fromCustom: Joi.string().allow("").required(),
       to: Joi.string().allow("auto", "dataMin", "dataMax", "custom").required(),
       toCustom: Joi.string().allow("").required(),
     }).required(),
     label: Joi.string().allow("").required(),
     unit: Joi.string().allow("").required(),
-    scale: Joi.string().allow("auto", "linear", "pow", "sqrt", "log").required(),
+    scale: Joi.string()
+      .allow("auto", "linear", "pow", "sqrt", "log")
+      .required(),
   });
 
   const barSchema = Joi.object({
     _id: Joi.any(),
     __v: Joi.any(),
     dataKey: Joi.string().allow("").required(),
-    fill: Joi.string().regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/).required(),
+    fill: Joi.string()
+      .regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/)
+      .required(),
     unit: Joi.string().allow("").required(),
     name: Joi.string().allow("").required(),
     stackId: Joi.string().allow("").required(),
@@ -124,8 +131,25 @@ function validateCollectionSettings(payload) {
     _id: Joi.any(),
     __v: Joi.any(),
     dataKey: Joi.string().allow("").required(),
-    lineType: Joi.string().allow("basis", "basisClosed", "basisOpen", "linear", "linearClosed", "natural", "monotone", "monotoneX", "monotoneY", "step", "stepBefore", "stepAfter").required(),
-    stroke: Joi.string().regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/).required(),
+    lineType: Joi.string()
+      .allow(
+        "basis",
+        "basisClosed",
+        "basisOpen",
+        "linear",
+        "linearClosed",
+        "natural",
+        "monotone",
+        "monotoneX",
+        "monotoneY",
+        "step",
+        "stepBefore",
+        "stepAfter"
+      )
+      .required(),
+    stroke: Joi.string()
+      .regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/)
+      .required(),
     dot: Joi.boolean().required(),
     activeDot: Joi.boolean().required(),
     label: Joi.boolean().required(),
@@ -140,8 +164,26 @@ function validateCollectionSettings(payload) {
     _id: Joi.any(),
     __v: Joi.any(),
     dataKey: Joi.string().allow("").required(),
-    lineType: Joi.string().allow("basis", "basisClosed", "basisOpen", "linear", "linearClosed", "natural", "monotone", "monotoneX", "monotoneY", "step", "stepBefore", "stepAfter").required(),
-    stroke: Joi.string().regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/).allow("").required(),
+    lineType: Joi.string()
+      .allow(
+        "basis",
+        "basisClosed",
+        "basisOpen",
+        "linear",
+        "linearClosed",
+        "natural",
+        "monotone",
+        "monotoneX",
+        "monotoneY",
+        "step",
+        "stepBefore",
+        "stepAfter"
+      )
+      .required(),
+    stroke: Joi.string()
+      .regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/)
+      .allow("")
+      .required(),
     dot: Joi.boolean().required(),
     activeDot: Joi.boolean().required(),
     label: Joi.boolean().required(),
@@ -158,6 +200,7 @@ function validateCollectionSettings(payload) {
     parent: Joi.string()
       .regex(/^[0-9a-fA-F]{24}$/)
       .required(),
+    name: Joi.string().max(30).required(),
     composedGraph: Joi.object({
       xAxis: axisSettingsSchema.required(),
       yAxis: axisSettingsSchema.required(),
