@@ -219,6 +219,33 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
   res.status(200).send("Added new row.");
 });
 
+router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
+  // Get the parent collection
+  const userId = await getUserIdByEmail(req.user.email);
+  const collection = await Collection.findOne({
+    _id: req.params.id,
+    owner: userId,
+  });
+  if (!collection) return res.status(404).send("Collection not found.");
+
+  // Get the collection data
+  let collectionData = await CollectionData.findOne({
+    parent: collection._id,
+  });
+  if (!collectionData)
+    return res.status(404).send("This collection has no data struct.");
+
+  collectionData.value[req.params.index] = req.body;
+
+  // Save the edited collection data struct to db
+  collectionData = await CollectionData.findByIdAndUpdate(
+    collectionData._id,
+    _.omit(collectionData, ["_id", "__v"]),
+    { new: true }
+  );
+  res.status(200).send(`Edited row at index ${req.params.index}`);
+});
+
 router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
   // Get the parent collection
   const userId = await getUserIdByEmail(req.user.email);
