@@ -390,15 +390,15 @@ router.put(
     const { error } = validateCollectionSettings(req.body);
     if (error) return res.status(400).send(error.details[0].message);
 
+    // Get the parent (collection)
+    const collection = await getCollection(req.params.id, req.user);
+    if (!collection) return res.status(404).send("Collection not found.");
+
     // Check for edit permissions
     if (!checkEditPermissions(collection, req.user))
       return res
         .status(403)
         .send("You are not permitted to edit the collection.");
-
-    // Get the parent (collection)
-    const collection = await getCollection(req.params.id, req.user);
-    if (!collection) return res.status(404).send("Collection not found.");
 
     // Save the changes
     let collectionSettings = await CollectionSettings.findOneAndUpdate(
