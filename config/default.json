@@ -2,5 +2,7 @@
     "jwtpk": "",
     "db": "",
     "email": "",
-    "web_url": ""
+    "web_url": "",
+    "telegram_token": "",
+    "telegram_chat_id": ""
 }
