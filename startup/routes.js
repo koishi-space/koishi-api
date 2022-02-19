@@ -27,7 +27,7 @@ module.exports = function (app) {
   // Middleware that is only active in production environment
   // Morgan - request logs
   // Helmet - route protection
-  if (process.env.NODE_ENV !== "production") app.use(morgan("tiny"));
+  app.use(morgan("tiny"));
   if (process.env.NODE_ENV === "development") app.use(helmet());
 
   // Router
