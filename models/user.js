@@ -11,20 +11,18 @@ const userSchema = new mongoose.Schema({
   status: String,
   isAdmin: Boolean,
   verificationCode: String,
+  collections: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collections",
+    },
+  ],
 });
 
-/**
- * JsonWebToken generation
- * contents:
- *  - _id (MongoDB ObjectId)
- *  - name (string)
- *  - isAdmin (boolean)
- *
- * @return {JsonWebToken}
- */
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
     {
+      _id: this._id,
       name: this.name,
       email: this.email,
       status: this.status,
@@ -36,14 +34,6 @@ userSchema.methods.generateAuthToken = function () {
   return token;
 };
 
-/**
- * Joi validation for "user" data structure
- *  - NOTE: this function does not test if name or email is already registered
- *
- * @param {object} user tested user object
- * @return {boolean} true - object is valid
- * @return {boolean} false - object is invalid
- */
 function validateUser(user) {
   const schema = Joi.object({
     _id: Joi.any(),

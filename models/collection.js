@@ -7,6 +7,16 @@ const collectionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
+  isPublic: {
+    type: Boolean,
+    default: false,
+  },
+  sharedTo: [
+    {
+      userEmail: String,
+      role: String,
+    }
+  ],
   model: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "CollectionModel",
@@ -23,6 +33,11 @@ const collectionSchema = new mongoose.Schema({
   ],
 });
 
+const collectionShareItemSchema = Joi.object({
+  userEmail: Joi.string().email().required(),
+  role: Joi.string().allow("view", "edit"),
+});
+
 function validateCollection(payload) {
   const schema = Joi.object({
     _id: Joi.any(),
@@ -31,6 +46,8 @@ function validateCollection(payload) {
     owner: Joi.string()
       .regex(/^[0-9a-fA-F]{24}$/)
       .required(),
+    isPublic: Joi.boolean().required(),
+    sharedTo: Joi.array().items(collectionShareItemSchema),
     model: Joi.string()
       .regex(/^[0-9a-fA-F]{24}$/)
       .required(),
@@ -45,7 +62,12 @@ function validateCollection(payload) {
   return schema.validate(payload);
 }
 
+function validateCollectionShare(payload) {
+  return collectionShareItemSchema.validate(payload);
+}
+
 const Collection = mongoose.model("Collection", collectionSchema);
 
 module.exports.Collection = Collection;
 module.exports.validateCollection = validateCollection;
+module.exports.validateCollectionShare = validateCollectionShare;

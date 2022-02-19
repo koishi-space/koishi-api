@@ -8,11 +8,18 @@ const mailer = require("../services/mailer");
 const { User, validateUser } = require("../models/user");
 const validateObjID = require("../middleware/validateObjID");
 const decode = require("jwt-decode");
+const { Collection } = require("../models/collection");
 const router = express.Router();
 
 router.get("/", [auth, admin], async (req, res) => {
   let users = await User.find().sort("name");
   res.status(200).send(users);
+});
+
+router.get("/me", auth, async (req, res) => {
+  let user = await User.findById(req.user._id).select("-password");
+  if (!user) return res.status(404).send("User under given id was not found.");
+  res.status(200).send(user);
 });
 
 router.get("/:id", [auth, admin], async (req, res) => {
@@ -21,12 +28,6 @@ router.get("/:id", [auth, admin], async (req, res) => {
 
   if (!user) return res.status(404).send("User was not found.");
 
-  res.status(200).send(user);
-});
-
-router.get("/me", auth, async (req, res) => {
-  let user = await User.findById(req.user._id).select("-password");
-  if (!user) return res.status(404).send("User under given id was not found.");
   res.status(200).send(user);
 });
 
@@ -48,7 +49,10 @@ router.post("/", async (req, res) => {
   user.isAdmin = false;
   user.status = "pending";
 
-  const genRanHex = size => [...Array(size)].map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  const genRanHex = (size) =>
+    [...Array(size)]
+      .map(() => Math.floor(Math.random() * 16).toString(16))
+      .join("");
   let verificationCode = genRanHex(32);
   user.verificationCode = verificationCode.toString();
 
@@ -65,22 +69,40 @@ router.post("/", async (req, res) => {
 });
 
 router.post("/verify", async (req, res) => {
-  const { error } = Joi.object({verificationCode: Joi.string().pattern(/^[0-9a-f]{32}$/).required()}).validate(req.body);
+  const { error } = Joi.object({
+    verificationCode: Joi.string()
+      .pattern(/^[0-9a-f]{32}$/)
+      .required(),
+  }).validate(req.body);
   if (error) return res.status(404).send("Invalid token.");
-  let dbUser = await User.findOne({verificationCode: req.body.verificationCode});
+  let dbUser = await User.findOne({
+    verificationCode: req.body.verificationCode,
+  });
   if (!dbUser) res.status(400).send("Invalid token.");
   else {
-    if (dbUser.status !== "pending") return res.status(400).send("User has already been verified.");
+    if (dbUser.status !== "pending")
+      return res.status(400).send("User has already been verified.");
     else {
       dbUser.status = "verified";
       let verifiedUser = await User.findByIdAndUpdate(
         dbUser._id,
         _.omit(dbUser, ["_id", "__v", "verificationCode"]),
-        {new: true},
+        { new: true }
       );
       return res.status(200).send(verifiedUser.generateAuthToken());
     }
   }
+});
+
+router.put("/populate", [auth], async (req, res) => {
+  let user = await User.findById(req.user._id);
+  const collections = await Collection.find({ owner: user._id });
+  for (const collection of collections) {
+    if (!user.collections.includes(collection._id))
+      user.collections.push(collection._id);
+  }
+  await User.findByIdAndUpdate(user._id, _.omit(user, ["__v", "_id"]));
+  return res.status(200).send("Populated your collections.");
 });
 
 // FOR NOW DISABLED - needs security enhancement

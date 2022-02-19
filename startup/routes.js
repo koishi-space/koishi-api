@@ -1,9 +1,7 @@
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
-let morgan;
-
-if (process.env.NODE_ENV !== "production") morgan = require("morgan");
+const morgan = require("morgan");
 
 // Routes
 const auth = require("../routes/auth");
