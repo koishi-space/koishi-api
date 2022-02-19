@@ -90,6 +90,7 @@ router.post("/", [auth], async (req, res) => {
   // Validate collection title
   let { error } = Joi.object({
     title: Joi.string().max(30).required(),
+    model: Joi.any(),
   }).validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
 
