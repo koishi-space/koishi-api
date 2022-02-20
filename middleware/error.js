@@ -20,9 +20,13 @@ module.exports = function (err, req, res, next) {
 
   // Telegram bot (koishi_api_bot) error logging
   if (config.get("telegram_token") && config.get("telegram_chat_id")) {
-    let message = `[ERROR]: ${req.url}\n${err.message}`;
-    bot = new TelegramBot(config.get("telegram_token"));
-    bot.sendMessage(config.get("telegram_chat_id"), message);
+    try {
+      let message = `[ERROR]: ${req.url}\n${err.message}`;
+      bot = new TelegramBot(config.get("telegram_token"));
+      bot.sendMessage(config.get("telegram_chat_id"), message);
+    } catch (ex) {
+      console.log("Failed to send error report to Telegram: " + ex.message);
+    }
   }
 
 

@@ -226,6 +226,32 @@ router.put("/share/remove/:id", [auth], async (req, res) => {
   res.status(200).send(`Stopped sharing with ${req.body.userEmail}`);
 });
 
+router.put("/visibility/public/:id", [auth], async (req, res) => {
+  // Check ownership
+  let collection = await Collection.findOne({
+    owner: req.user._id,
+    _id: req.params.id,
+  });
+  if (!collection) return res.status(404).send("Collection not found");
+
+  // Change the collection visibility to "public"
+  await Collection.findByIdAndUpdate(collection._id, {isPublic: true});
+  return res.status(200).send(`Collection ${collection.title} is now public.`);
+});
+
+router.put("/visibility/private/:id", [auth], async (req, res) => {
+  // Check ownership
+  let collection = await Collection.findOne({
+    owner: req.user._id,
+    _id: req.params.id,
+  });
+  if (!collection) return res.status(404).send("Collection not found");
+
+  // Change the collection visibility to "private"
+  await Collection.findByIdAndUpdate(collection._id, {isPublic: false});
+  return res.status(200).send(`Collection ${collection.title} is now private.`);
+});
+
 function simplifyCollectionStruct(payload) {
   let simplified = new Array();
   let newItem = {};

@@ -66,8 +66,47 @@ function validateCollectionShare(payload) {
   return collectionShareItemSchema.validate(payload);
 }
 
+function checkEditPermissions(collection, user) {
+  // User is the collection's owner
+  if (collection.owner.toString() === user._id.toString()) return true;
+
+  // User has the collection shared to him
+  const share = collection.sharedTo.find((x) => x.userEmail === user.email);
+  return share && share.role === "edit";
+}
+
+async function getCollection(collectionId, user, populate = false) {
+  let collection;
+  if (populate)
+    collection = await Collection.findOne({
+      _id: collectionId,
+      $or: [{ owner: user._id }, { "sharedTo.userEmail": user.email }],
+    })
+      .populate("model")
+      .populate("data")
+      .populate("settings");
+  else
+    collection = await Collection.findOne({
+      _id: collectionId,
+      $or: [{ owner: user._id }, { "sharedTo.userEmail": user.email }],
+    });
+  return collection;
+}
+
+async function getUserByEmail(email, idOnly = true) {
+  let user = await User.findOne({
+    email: email,
+  });
+
+  if (idOnly) return user ? user._id : null;
+  else return user ? user : null;
+}
+
 const Collection = mongoose.model("Collection", collectionSchema);
 
 module.exports.Collection = Collection;
 module.exports.validateCollection = validateCollection;
 module.exports.validateCollectionShare = validateCollectionShare;
+module.exports.checkEditPermissions = checkEditPermissions;
+module.exports.getCollection = getCollection;
+module.exports.getUserByEmail = getUserByEmail;

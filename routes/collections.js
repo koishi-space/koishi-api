@@ -5,7 +5,12 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const validateObjID = require("../middleware/validateObjID");
 const { User } = require("../models/user");
-const { Collection } = require("../models/collection");
+const {
+  Collection,
+  checkEditPermissions,
+  getCollection,
+  getUserByEmail,
+} = require("../models/collection");
 const { CollectionData } = require("../models/collectionData");
 const { ActionToken } = require("../models/actionToken");
 const {
@@ -17,56 +22,56 @@ const {
   validateCollectionSettings,
 } = require("../models/collectionSettings");
 
-async function getCollection(collectionId, user, populate = false) {
+// ===Collections===
+router.get("/public/:id", [validateObjID], async (req, res) => {
   let collection;
-  if (populate)
-    collection = await Collection.findOne({
-      _id: collectionId,
-      $or: [{ owner: user._id }, { "sharedTo.userEmail": user.email }],
-    })
-      .populate("model")
-      .populate("data")
-      .populate("settings");
-  else
-    collection = await Collection.findOne({
-      _id: collectionId,
-      $or: [{ owner: user._id }, { "sharedTo.userEmail": user.email }],
-    });
-  return collection;
-}
+  try {
+    collection = (await Collection.findOne({_id: req.params.id, isPublic: true}).select("-sharedTo").populate("model").populate("settings").populate("data")).toObject();
+  } catch (ex) {
+    return res.status(404).send("Collection was not found");
+  }
 
-function checkEditPermissions(collection, user) {
-  // User is the collection's owner
-  if (collection.owner.toString() === user._id.toString()) return true;
+  // Change the owner string
+  const owner = await User.findById(collection.owner);
+  collection.owner = owner.name;
 
-  // User has the collection shared to him
-  const share = collection.sharedTo.find((x) => x.userEmail === user.email);
-  return share && share.role === "edit";
-}
+  return res.status(200).send(collection);
+});
 
-async function getUserByEmail(email, idOnly = true) {
-  let user = await User.findOne({
-    email: email,
-  });
+router.get("/public", [], async (req, res) => {
+  // TODO: fix this extremely inefficient code below (this whole endpoint is shit)
+  let collectionsQuery = await Collection.find({isPublic: true}).select("-sharedTo");
+  let collections = [];
 
-  if (idOnly) return user ? user._id : null;
-  else return user ? user : null;
-}
+  if (req.query.fetchOwners) {
+    for (let collection of collectionsQuery) {
+      let c = collection.toObject();
+      let owner = await User.findById(c.owner);
+      c.owner = owner.name;
+      collections.push(c);
+    }
+  }
 
-// ===Collection===
+  res.status(200).send(collections);
+});
+
 router.get("/:id", [validateObjID, auth], async (req, res) => {
   let collection;
   if (req.query.noPopulate) {
     collection = (await getCollection(req.params.id, req.user)).toObject();
   } else {
-    collection = (await getCollection(req.params.id, req.user, true)).toObject();
+    collection = (
+      await getCollection(req.params.id, req.user, true)
+    ).toObject();
   }
 
   if (!collection) return res.status(404).send("Collection not found.");
 
   // Change the "owner" value
   let user = await User.findById(collection.owner);
-  collection.ownerString = `${user.name} (${user.email === req.user.email ? "you" : user.email})`;
+  collection.ownerString = `${user.name} (${
+    user.email === req.user.email ? "you" : user.email
+  })`;
   return res.status(200).send(collection);
 });
 
