@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Joi = require("joi");
+const { User } = require("./user");
 
 const collectionSchema = new mongoose.Schema({
   title: String,
