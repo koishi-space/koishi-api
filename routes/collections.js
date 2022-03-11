@@ -240,7 +240,7 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
   if (!checkEditPermissions(collection, req.user))
     return res
       .status(403)
-      .send("You are not permitted to edit the collection.");
+      .send("You are not authorized to edit the collection.");
 
   // Get the collection data
   let collectionData = await CollectionData.findOne({
@@ -270,7 +270,7 @@ router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
   if (!checkEditPermissions(collection, req.user))
     return res
       .status(403)
-      .send("You are not permitted to edit the collection.");
+      .send("You are not authorized to edit the collection.");
 
   // Get the collection data
   let collectionData = await CollectionData.findOne({
@@ -299,7 +299,7 @@ router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
   if (!checkEditPermissions(collection, req.user))
     return res
       .status(403)
-      .send("You are not permitted to edit the collection.");
+      .send("You are not authorized to edit the collection.");
 
   // Get the collection data
   let collectionData = await CollectionData.findOne({
@@ -344,7 +344,7 @@ router.post("/:id/settings/new", [validateObjID, auth], async (req, res) => {
   if (!checkEditPermissions(collection, req.user))
     return res
       .status(403)
-      .send("You are not permitted to edit the collection.");
+      .send("You are not authorized to edit the collection.");
 
   // Create new, save it and edit the parent collection object
   let newSettings = new CollectionSettings({
@@ -368,7 +368,7 @@ router.put("/:id/settings/reset", [validateObjID, auth], async (req, res) => {
   if (!checkEditPermissions(collection, req.user))
     return res
       .status(403)
-      .send("You are not permitted to edit the collection.");
+      .send("You are not authorized to edit the collection.");
 
   // Delete the old settings object
   await CollectionSettings.deleteMany({ parent: collection._id });
@@ -403,7 +403,7 @@ router.put(
     if (!checkEditPermissions(collection, req.user))
       return res
         .status(403)
-        .send("You are not permitted to edit the collection.");
+        .send("You are not authorized to edit the collection.");
 
     // Save the changes
     let collectionSettings = await CollectionSettings.findOneAndUpdate(
@@ -429,7 +429,7 @@ router.patch(
     if (!checkEditPermissions(collection, req.user))
       return res
         .status(403)
-        .send("You are not permitted to edit the collection.");
+        .send("You are not authorized to edit the collection.");
 
     // Validate the new name
     const payloadSchema = Joi.object({
@@ -460,7 +460,7 @@ router.delete(
     if (!checkEditPermissions(collection, req.user))
       return res
         .status(403)
-        .send("You are not permitted to edit the collection.");
+        .send("You are not authorized to edit the collection.");
 
     // // Delete the collection settings
     let collectionSettings = await CollectionSettings.findOneAndDelete({

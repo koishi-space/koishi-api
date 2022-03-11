@@ -90,6 +90,34 @@ const collectionSettingsSchema = new mongoose.Schema({
       default: [],
     },
   },
+  radarGraph: {
+    polarAngleAxis: {
+      dataKey: { type: String, default: "" },
+    },
+    radialAngleAxis: {
+      dataKey: { type: String, default: "" },
+      range: {
+        from: { type: String, default: "auto" },
+        fromCustom: { type: String, default: "" },
+        to: { type: String, default: "auto" },
+        toCustom: { type: String, default: "" },
+      },
+    },
+    radars: {
+      type: [
+        {
+          dataKey: { type: String, default: "" },
+          name: { type: String, default: "" },
+          fill: { type: String, default: "#ad37e8" },
+          dot: { type: Boolean, default: false },
+          activeDot: { type: Boolean, default: false },
+          label: { type: Boolean, default: false },
+          hide: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
+  },
 });
 
 function validateCollectionSettings(payload) {
@@ -194,6 +222,37 @@ function validateCollectionSettings(payload) {
     hide: Joi.boolean().required(),
   });
 
+  const polarAngleAxisSchema = Joi.object({
+    dataKey: Joi.string().allow("").required(),
+  });
+
+  const radiusAngleAxisSchema = Joi.object({
+    dataKey: Joi.string().allow("").required(),
+    range: Joi.object({
+        from: Joi.string()
+          .allow("auto", "dataMin", "dataMax", "custom")
+          .required(),
+        fromCustom: Joi.string().allow("").required(),
+        to: Joi.string().allow("auto", "dataMin", "dataMax", "custom").required(),
+        toCustom: Joi.string().allow("").required(),
+      }).required(),
+});
+
+  const radarSchema = Joi.object({
+    _id: Joi.any(),
+    __v: Joi.any(),
+    dataKey: Joi.string().allow("").required(),
+    name: Joi.string().allow("").required(),
+    fill: Joi.string()
+      .regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/)
+      .allow("")
+      .required(),
+    dot: Joi.boolean().required(),
+    activeDot: Joi.boolean().required(),
+    label: Joi.boolean().required(),
+    hide: Joi.boolean().required(),
+  });
+
   const schema = Joi.object({
     _id: Joi.any(),
     __v: Joi.any(),
@@ -207,6 +266,11 @@ function validateCollectionSettings(payload) {
       bars: Joi.array().items(barSchema),
       lines: Joi.array().items(lineSchema),
       areas: Joi.array().items(areaSchema),
+    }).required(),
+    radarGraph: Joi.object({
+      polarAngleAxis: polarAngleAxisSchema.required(),
+      radialAngleAxis: radiusAngleAxisSchema.required(),
+      radars: Joi.array().items(radarSchema),
     }).required(),
   });
 
