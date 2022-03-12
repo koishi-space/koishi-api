@@ -118,6 +118,11 @@ const collectionSettingsSchema = new mongoose.Schema({
       default: [],
     },
   },
+  pieGraph: {
+    dataKey: { type: String, default: "" },
+    nameKey: { type: String, default: "" },
+    fill: { type: String, default: "#946d90" },
+  },
 });
 
 function validateCollectionSettings(payload) {
@@ -226,17 +231,17 @@ function validateCollectionSettings(payload) {
     dataKey: Joi.string().allow("").required(),
   });
 
-  const radiusAngleAxisSchema = Joi.object({
+  const radialAngleAxisSchema = Joi.object({
     dataKey: Joi.string().allow("").required(),
     range: Joi.object({
-        from: Joi.string()
-          .allow("auto", "dataMin", "dataMax", "custom")
-          .required(),
-        fromCustom: Joi.string().allow("").required(),
-        to: Joi.string().allow("auto", "dataMin", "dataMax", "custom").required(),
-        toCustom: Joi.string().allow("").required(),
-      }).required(),
-});
+      from: Joi.string()
+        .allow("auto", "dataMin", "dataMax", "custom")
+        .required(),
+      fromCustom: Joi.string().allow("").required(),
+      to: Joi.string().allow("auto", "dataMin", "dataMax", "custom").required(),
+      toCustom: Joi.string().allow("").required(),
+    }).required(),
+  });
 
   const radarSchema = Joi.object({
     _id: Joi.any(),
@@ -251,6 +256,14 @@ function validateCollectionSettings(payload) {
     activeDot: Joi.boolean().required(),
     label: Joi.boolean().required(),
     hide: Joi.boolean().required(),
+  });
+
+  const pieSchema = Joi.object({
+    dataKey: Joi.string().allow("").required(),
+    nameKey: Joi.string().allow("").required(),
+    fill: Joi.string()
+      .regex(/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/)
+      .required(),
   });
 
   const schema = Joi.object({
@@ -269,9 +282,10 @@ function validateCollectionSettings(payload) {
     }).required(),
     radarGraph: Joi.object({
       polarAngleAxis: polarAngleAxisSchema.required(),
-      radialAngleAxis: radiusAngleAxisSchema.required(),
+      radialAngleAxis: radialAngleAxisSchema.required(),
       radars: Joi.array().items(radarSchema),
     }).required(),
+    pieGraph: pieSchema.required(),
   });
 
   return schema.validate(payload);
