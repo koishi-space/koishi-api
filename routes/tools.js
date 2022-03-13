@@ -10,10 +10,12 @@ const { User } = require("../models/user");
 const winston = require("winston");
 const { ActionToken } = require("../models/actionToken");
 const Joi = require("joi");
+const o2x = require("object-to-xml");
+const xlsx = require("xlsx");
 
 router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
   // Check ownership
-  const userId = await getUserIdByEmail(req.user.email);
+  const userId = req.user._id;
   const collection = await Collection.findOne({
     owner: userId,
     _id: req.params.id,
@@ -26,12 +28,10 @@ router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
   });
   if (!collectionData) return res.status(404).send("Collection is empty.");
 
-  // Parse to a simplified json structure if "simplified" argument is passed
-  let contents = req.query.simplified
-    ? simplifyCollectionStruct(collectionData.value)
-    : collectionData.value;
+  // Parse to a simplified json structure
+  let contents = simplifyCollectionStruct(collectionData.value);
 
-  // Create a temporary file
+  // Create a temporary file and send it to the client
   let dir = path.join(
     __dirname,
     "..",
@@ -46,6 +46,97 @@ router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
       fs.unlink(dir, (err) => {
         console.log(err);
       });
+    });
+  });
+});
+
+router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
+  // Check ownership
+  const userId = req.user._id;
+  const collection = await Collection.findOne({
+    owner: userId,
+    _id: req.params.id,
+  });
+  if (!collection) return res.status(404).send("Collection not found");
+
+  // Get collection data
+  const collectionData = await CollectionData.findOne({
+    parent: collection._id,
+  });
+  if (!collectionData) return res.status(404).send("Collection is empty.");
+
+  // Parse to a simplified json structure
+  let contents = simplifyCollectionStruct(collectionData.value);
+
+  // Create a temporary file
+  let dir = path.join(
+    __dirname,
+    "..",
+    "temp",
+    "xmlexports",
+    `${getRandomFilename()}.xml`
+  );
+
+  // Parse to XML
+  var xml = o2x({
+    '?xml version="1.0" encoding="UTF-8"?': null,
+  });
+  xml += "<root>"
+  for (const row of contents) {
+    xml += o2x({row: row});
+  }
+  xml += "</root>";
+
+  // Send the file to client
+  fs.writeFile(dir, xml, (err, file) => {
+    if (err) return res.status(400).send(err);
+    res.status(200).download(dir, collection.title.trim() + ".xml", (err) => {
+      if (err) winston.error(err);
+      fs.unlink(dir, (err) => {
+        console.log(err);
+      });
+    });
+  });
+});
+
+router.get("/export/:id/xlsx", [validateObjID, auth], async (req, res) => {
+  // Check ownership
+  const userId = req.user._id;
+  const collection = await Collection.findOne({
+    owner: userId,
+    _id: req.params.id,
+  });
+  if (!collection) return res.status(404).send("Collection not found");
+
+  // Get collection data
+  const collectionData = await CollectionData.findOne({
+    parent: collection._id,
+  });
+  if (!collectionData) return res.status(404).send("Collection is empty.");
+
+  // Parse to a simplified json structure
+  let contents = simplifyCollectionStruct(collectionData.value);
+
+  // Create a temporary file
+  let dir = path.join(
+    __dirname,
+    "..",
+    "temp",
+    "xlsxexports",
+    `${getRandomFilename()}.xlsx`
+  );
+
+  // Parse to XLSX
+  const sheet = xlsx.utils.json_to_sheet(contents)
+  const book = xlsx.utils.book_new()
+  xlsx.utils.book_append_sheet(book, sheet, collection.title.trim() + ".xlsx");
+  xlsx.writeFile(book, dir);
+  
+  // Send the file to client
+  res.status(200).download(dir, collection.title.trim() + ".xlsx", (err) => {
+    if (err) winston.error(err);
+    fs.unlink(dir, (err) => {
+      winston.error(err);
     });
   });
 });
@@ -127,9 +218,12 @@ router.post("/share/add/:id", [validateObjID, auth], async (req, res) => {
       let user = await User.findById(targetUserId);
       if (!user.collections.includes(collection._id)) {
         // Update the action token
-        await ActionToken.findOneAndUpdate({userId: user._id,
-          targetId: collection._id,
-          category: "share"}, {purpose: `User ${req.user.name} shared collection ${collection.title} with role ${req.body.role}`});
+        await ActionToken.findOneAndUpdate(
+          { userId: user._id, targetId: collection._id, category: "share" },
+          {
+            purpose: `User ${req.user.name} shared collection ${collection.title} with role ${req.body.role}`,
+          }
+        );
       }
       await User.findByIdAndUpdate(user._id, user);
     } else {
@@ -235,7 +329,7 @@ router.put("/visibility/public/:id", [auth], async (req, res) => {
   if (!collection) return res.status(404).send("Collection not found");
 
   // Change the collection visibility to "public"
-  await Collection.findByIdAndUpdate(collection._id, {isPublic: true});
+  await Collection.findByIdAndUpdate(collection._id, { isPublic: true });
   return res.status(200).send(`Collection ${collection.title} is now public.`);
 });
 
@@ -248,7 +342,7 @@ router.put("/visibility/private/:id", [auth], async (req, res) => {
   if (!collection) return res.status(404).send("Collection not found");
 
   // Change the collection visibility to "private"
-  await Collection.findByIdAndUpdate(collection._id, {isPublic: false});
+  await Collection.findByIdAndUpdate(collection._id, { isPublic: false });
   return res.status(200).send(`Collection ${collection.title} is now private.`);
 });
 
@@ -257,7 +351,7 @@ function simplifyCollectionStruct(payload) {
   let newItem = {};
   for (let x of payload) {
     for (let y of x) {
-      newItem[y.column] = y.data;
+      newItem[y.column.toLowerCase()] = y.data;
     }
     simplified.push(newItem);
     newItem = {};
