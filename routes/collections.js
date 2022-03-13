@@ -11,7 +11,7 @@ const {
   getCollection,
   getUserByEmail,
 } = require("../models/collection");
-const { CollectionData } = require("../models/collectionData");
+const { CollectionData, validateRowPayload } = require("../models/collectionData");
 const { ActionToken } = require("../models/actionToken");
 const {
   CollectionModel,
@@ -26,7 +26,13 @@ const {
 router.get("/public/:id", [validateObjID], async (req, res) => {
   let collection;
   try {
-    collection = (await Collection.findOne({_id: req.params.id, isPublic: true}).select("-sharedTo").populate("model").populate("settings").populate("data")).toObject();
+    collection = (
+      await Collection.findOne({ _id: req.params.id, isPublic: true })
+        .select("-sharedTo")
+        .populate("model")
+        .populate("settings")
+        .populate("data")
+    ).toObject();
   } catch (ex) {
     return res.status(404).send("Collection was not found");
   }
@@ -40,7 +46,9 @@ router.get("/public/:id", [validateObjID], async (req, res) => {
 
 router.get("/public", [], async (req, res) => {
   // TODO: fix this extremely inefficient code below (this whole endpoint is shit)
-  let collectionsQuery = await Collection.find({isPublic: true}).select("-sharedTo");
+  let collectionsQuery = await Collection.find({ isPublic: true }).select(
+    "-sharedTo"
+  );
   let collections = [];
 
   if (req.query.fetchOwners) {
@@ -242,6 +250,14 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
       .status(403)
       .send("You are not authorized to edit the collection.");
 
+  // Get the collection model and validate the payload
+  let collectionModel = await CollectionModel.findOne({
+    parent: collection._id,
+  });
+  let validationErrorMessages = validateRowPayload(collectionModel, req.body);
+  if (validationErrorMessages.length > 0)
+    return res.status(400).send(validationErrorMessages);
+
   // Get the collection data
   let collectionData = await CollectionData.findOne({
     parent: collection._id,
@@ -258,7 +274,7 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
     _.omit(collectionData, ["_id", "__v"]),
     { new: true }
   );
-  return res.status(200).send("Added new row.");
+  return res.status(201).send("Added new row.");
 });
 
 router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
@@ -271,6 +287,14 @@ router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
     return res
       .status(403)
       .send("You are not authorized to edit the collection.");
+
+  // Get the collection model and validate the payload
+  let collectionModel = await CollectionModel.findOne({
+    parent: collection._id,
+  });
+  let validationErrorMessages = validateRowPayload(collectionModel, req.body);
+  if (validationErrorMessages.length > 0)
+    return res.status(400).send(validationErrorMessages);
 
   // Get the collection data
   let collectionData = await CollectionData.findOne({
