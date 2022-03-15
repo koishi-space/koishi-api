@@ -26,10 +26,10 @@ io.on("connection", (socket) => {
     });
   });
 
-  // socket.on("disconnect", () => {
-  //   socket.disconnect();
-  //   console.log("Client " + socket.id + "disconnected");
-  // });
+  socket.on("end", () => {
+    socket.disconnect();
+    console.log("Client " + socket.id + "disconnected");
+  });
 });
 
 const port = process.env.PORT || 3000;
