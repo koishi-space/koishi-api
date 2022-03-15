@@ -4,14 +4,17 @@ const auth = require("../middleware/auth");
 const fs = require("fs");
 const path = require("path");
 const validateObjID = require("../middleware/validateObjID");
-const { Collection, validateCollectionShare } = require("../models/collection");
+const { Collection, validateCollectionShare, getUserByEmail } = require("../models/collection");
 const { CollectionData } = require("../models/collectionData");
+const { CollectionSettings } = require("../models/collectionSettings");
 const { User } = require("../models/user");
 const winston = require("winston");
 const { ActionToken } = require("../models/actionToken");
 const Joi = require("joi");
 const o2x = require("object-to-xml");
 const xlsx = require("xlsx");
+const { validateCollectionModel, CollectionModel } = require("../models/collectionModel");
+const _ = require("lodash");
 
 router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
   // Check ownership
@@ -344,6 +347,68 @@ router.put("/visibility/private/:id", [auth], async (req, res) => {
   // Change the collection visibility to "private"
   await Collection.findByIdAndUpdate(collection._id, { isPublic: false });
   return res.status(200).send(`Collection ${collection.title} is now private.`);
+});
+
+router.get("/empty/settings", [], async (req, res) => {
+  let settings = new CollectionSettings();
+  res.status(200).send(settings);
+});
+
+router.post("/realtime/save", [auth], async (req, res) => {
+  // Check and set ownership
+  let user = await getUserByEmail(req.user.email, false);
+  if (!user) return res.status(400).send("Creator does not exist.");
+
+  // Prepare the collection structure
+  let collection = new Collection({
+    title: req.body.title,
+    owner: user._id,
+  });
+
+  // Create and set the supplied data record
+  // Cast the data structure to fit the one needed in db
+  let dataCasted = [];
+
+  for (const row of req.body.sessionData) {
+    let rowCasted = [];
+    Object.keys(row).forEach(k => {
+      rowCasted.push({
+        column: k,
+        data: row[k],
+      });
+    });
+    dataCasted.push(rowCasted);
+  }
+  let collectionData = new CollectionData({
+    parent: collection._id,
+    value: dataCasted,
+  });
+  collection.data = collectionData._id;
+
+  // Create and set collection model if it is valid
+  let error = validateCollectionModel(req.body.model, true).error;
+  if (error) return res.status(400).send(error.details[0].message);
+  let collectionModel = new CollectionModel({
+    parent: collection._id,
+    value: req.body.model,
+  });
+  collection.model = collectionModel._id;
+
+  // Save the existing graph settings as the default setting preset
+  let collectionSettings = new CollectionSettings({...req.body.settings, parent: collection._id});
+  let presets = [];
+  presets.push(collectionSettings._id);
+  collection.settings = presets;
+
+  // Save the collection and its parts and add it to user's collections
+  user.collections.push(collection._id);
+  await User.findByIdAndUpdate(user._id, _.omit(user, ["__v", "_id"]));
+  await collectionSettings.save();
+  await collectionData.save();
+  await collectionModel.save();
+  await collection.save();
+
+  return res.status(201).send(collection);
 });
 
 function simplifyCollectionStruct(payload) {

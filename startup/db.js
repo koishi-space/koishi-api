@@ -9,7 +9,7 @@ module.exports = function () {
     .connect(conn, { useUnifiedTopology: true, useNewUrlParser: true })
     .then(() => {
       let url = conn.includes("localhost") ? "localhost" : "atlas cloud";
-      console.log(`Connected to MongoDB on (${url})`);
+      console.log(`[SERVER] Connected to MongoDB on (${url})`);
       winston.info(`Connected to MongoDB on (${url})`);
     });
 };
