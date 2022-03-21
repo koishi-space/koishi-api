@@ -2,12 +2,12 @@ const nodemailer = require("nodemailer");
 const config = require("config");
 
 var transporter = nodemailer.createTransport({
-  host: "smtp.seznam.cz",
+  host: config.get("email_host"),
   port: 465,
   secure: true,
   auth: {
-    user: "koishi@email.cz",
-    pass: config.get("email"),
+    user: config.get("email_user"),
+    pass: config.get("email_password"),
   },
 });
 
@@ -15,7 +15,7 @@ module.exports.sendRegistrationVerificationEmail = async (user) => {
   let verificationUrl = config.get("web_url") + `/verify?token=${user.verificationCode}`;
   
   let content = {
-    from: "koishi@email.cz",
+    from: config.get("email_user"),
     to: user.email,
     subject: "New account verification",
     html: `<!DOCTYPE html>\
@@ -85,14 +85,14 @@ module.exports.sendRegistrationVerificationEmail = async (user) => {
           <div class=\"divider\"></div>\
           <p class=\"text\">\
             Hi,<br />\
-            thank you for signing with Koishi UwU.<br />\
+            thank you for signing with Koishi!<br />\
             Click the link below to verify your account:<br />\
           </p>\
           <a href=\"${verificationUrl}\" class=\"code\">${verificationUrl}</p>\
           <div class=\"divider\"></div>\
           <p></p>\
-          <a href=\"https://koishi-space.herokuapp.com\" class=\"link\">\
-            Koishi.space\
+          <a href=\"${config.get("web_url")}\" class=\"link\">\
+            Koishi\
           </a>\
           <p></p>\
         </div>\

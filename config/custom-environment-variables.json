@@ -1,8 +1,14 @@
 {
     "jwtpk": "KOISHI_JWTPK",
     "db": "KOISHI_DB",
-    "email": "KOISHI_EMAIL",
     "web_url": "KOISHI_WEB_URL",
+
+    "use_email": "KOISHI_USE_EMAIL",
+    "email_host": "KOISHI_EMAIL_HOST",
+    "email_user": "KOISHI_EMAIL_USER",
+    "email_password": "KOISHI_EMAIL_PASSWORD",
+    
+    "use_telegram": "KOISHI_USE_TELEGRAM",
     "telegram_token": "KOISHI_TELEGRAM_TOKEN",
     "telegram_chat_id": "KOISHI_TELEGRAM_CHAT_ID"
 }

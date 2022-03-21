@@ -85,6 +85,7 @@ router.get("/:id", [validateObjID, auth], async (req, res) => {
 
 router.get("/", [auth], async (req, res) => {
   const user = await User.findById(req.user._id);
+  if (!user) return res.status(400).send("This user no longer exists.");
   let collections = await Collection.find({
     $and: [
       { _id: { $in: user.collections } },

@@ -1,8 +1,14 @@
 {
-    "jwtpk": "",
-    "db": "",
-    "email": "",
-    "web_url": "",
-    "telegram_token": "",
-    "telegram_chat_id": ""
+  "jwtpk": "",
+  "db": "",
+  "web_url": "",
+
+  "use_email": "",
+  "email_host": "",
+  "email_user": "",
+  "email_password": "",
+
+  "use_telegram": "",
+  "telegram_token": "",
+  "telegram_chat_id": ""
 }

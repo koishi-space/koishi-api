@@ -9,6 +9,7 @@ const { User, validateUser } = require("../models/user");
 const validateObjID = require("../middleware/validateObjID");
 const decode = require("jwt-decode");
 const { Collection } = require("../models/collection");
+const config = require("config");
 const router = express.Router();
 
 router.get("/", [auth, admin], async (req, res) => {
@@ -56,9 +57,10 @@ router.post("/", async (req, res) => {
   let verificationCode = genRanHex(32);
   user.verificationCode = verificationCode.toString();
 
-  console.log("Sending verificatoin email");
-  await mailer.sendRegistrationVerificationEmail(user);
-  console.log("Email sent");
+  if (config.get("use_email").toString() === "true") {
+    await mailer.sendRegistrationVerificationEmail(user);
+    console.log("Verifying user via email");
+  } else user.status = "verified";
 
   user = await user.save(); // save user to database
 
