@@ -19,10 +19,10 @@
   "homepage": "https://github.com/hendrychjan/koishi-api#readme",
   "devDependencies": {
     "jest": "^27.1.0",
-    "morgan": "^1.10.0",
     "supertest": "^6.1.6"
   },
   "dependencies": {
+    "morgan": "^1.10.0",
     "@joi/date": "^2.1.0",
     "bcrypt": "^5.0.1",
     "compression": "^1.7.4",
