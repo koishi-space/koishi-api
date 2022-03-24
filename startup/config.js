@@ -24,8 +24,8 @@ module.exports = function () {
 
   // ENV related to Telegram
   // Telegram bots are used to send error logs to a group, notifying you about app crashes
-  if (config.get("use_telegram")) {
-    if (!config.get("telegram_token")) console.log("ENV ERROR: USE_TELEGRAM is set to \"true\", but KOISHI_TELEGRAM_TOKEN is not defined");
-    if (!config.get("telegram_chat_id")) console.log("ENV ERROR: USE_TELEGRAM is set to \"true\", but KOISHI_TELEGRAM_CHAT_ID is not defined");
+  if (config.get("use_telegram").toString() === "true") {
+    if (!config.get("telegram_token")) throw new Error("ENV ERROR: USE_TELEGRAM is set to \"true\", but KOISHI_TELEGRAM_TOKEN is not defined");
+    if (!config.get("telegram_chat_id")) throw new Error("ENV ERROR: USE_TELEGRAM is set to \"true\", but KOISHI_TELEGRAM_CHAT_ID is not defined");
   }
 };
