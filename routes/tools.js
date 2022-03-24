@@ -85,8 +85,11 @@ router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
     '?xml version="1.0" encoding="UTF-8"?': null,
   });
   xml += "<root>"
-  for (const row of contents) {
-    xml += o2x({row: row});
+  for (let row of contents) {
+    let rowParsed = {};
+    for (let key of Object.keys(row))
+      rowParsed[key.replace(/\s/g, "_")] = row[key];
+    xml += o2x({row: rowParsed});
   }
   xml += "</root>";
 
