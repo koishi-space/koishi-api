@@ -26,6 +26,7 @@ module.exports = function () {
       new winston.transports.MongoDB({
         db: config.get("db"),
         collection: "logs",
+        options: { useUnifiedTopology: true, useNewUrlParser: true },
       }),
     ],
     meta: true,

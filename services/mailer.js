@@ -12,8 +12,9 @@ var transporter = nodemailer.createTransport({
 });
 
 module.exports.sendRegistrationVerificationEmail = async (user) => {
-  let verificationUrl = config.get("web_url") + `/verify?token=${user.verificationCode}`;
-  
+  let verificationUrl =
+    config.get("web_url") + `/verify?token=${user.verificationCode}`;
+
   let content = {
     from: config.get("email_user"),
     to: user.email,
@@ -98,12 +99,7 @@ module.exports.sendRegistrationVerificationEmail = async (user) => {
         </div>\
       </body>\
     </html>\
-    `
+    `,
   };
-
-  try {
-    await transporter.sendMail(content);
-  } catch (e) {
-    console.log(e);
-  }
+  await transporter.sendMail(content);
 };

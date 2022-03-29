@@ -4,7 +4,7 @@ const auth = require("../middleware/auth");
 const fs = require("fs");
 const path = require("path");
 const validateObjID = require("../middleware/validateObjID");
-const { Collection, validateCollectionShare, getUserByEmail } = require("../models/collection");
+const { Collection, validateCollectionShare, getUserByEmail, getCollection } = require("../models/collection");
 const { CollectionData } = require("../models/collectionData");
 const { CollectionSettings } = require("../models/collectionSettings");
 const { User } = require("../models/user");
@@ -18,11 +18,7 @@ const _ = require("lodash");
 
 router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
   // Check ownership
-  const userId = req.user._id;
-  const collection = await Collection.findOne({
-    owner: userId,
-    _id: req.params.id,
-  });
+  const collection = await getCollection(req.params.id, req.user);
   if (!collection) return res.status(404).send("Collection not found");
 
   // Get collection data
@@ -43,11 +39,14 @@ router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
     `${getRandomFilename()}.json`
   );
   fs.writeFile(dir, JSON.stringify(contents, null, 2), (err, file) => {
-    if (err) return res.status(400).send(err);
+    if (err) {
+      res.status(400).send(err);
+      throw err;
+    }
     res.status(200).download(dir, collection.title.trim() + ".json", (err) => {
       if (err) winston.error(err);
       fs.unlink(dir, (err) => {
-        console.log(err);
+        throw err;
       });
     });
   });
@@ -55,11 +54,7 @@ router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
 
 router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
   // Check ownership
-  const userId = req.user._id;
-  const collection = await Collection.findOne({
-    owner: userId,
-    _id: req.params.id,
-  });
+  const collection = await getCollection(req.params.id, req.user);
   if (!collection) return res.status(404).send("Collection not found");
 
   // Get collection data
@@ -95,11 +90,14 @@ router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
 
   // Send the file to client
   fs.writeFile(dir, xml, (err, file) => {
-    if (err) return res.status(400).send(err);
+    if (err) {
+      res.status(400).send(err);
+      throw err;
+    }
     res.status(200).download(dir, collection.title.trim() + ".xml", (err) => {
       if (err) winston.error(err);
       fs.unlink(dir, (err) => {
-        console.log(err);
+        throw err;
       });
     });
   });
@@ -107,11 +105,7 @@ router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
 
 router.get("/export/:id/xlsx", [validateObjID, auth], async (req, res) => {
   // Check ownership
-  const userId = req.user._id;
-  const collection = await Collection.findOne({
-    owner: userId,
-    _id: req.params.id,
-  });
+  const collection = await getCollection(req.params.id, req.user);
   if (!collection) return res.status(404).send("Collection not found");
 
   // Get collection data

@@ -59,7 +59,6 @@ router.post("/", async (req, res) => {
 
   if (config.get("use_email").toString() === "true") {
     await mailer.sendRegistrationVerificationEmail(user);
-    console.log("Verifying user via email");
   } else user.status = "verified";
 
   user = await user.save(); // save user to database
