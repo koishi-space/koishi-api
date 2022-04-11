@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "jest --detectOpenHandles --runInBand",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "docs": "node_modules/apidoc/bin/apidoc -i routes -o apidoc"
   },
   "repository": {
     "type": "git",
@@ -18,11 +20,12 @@
   },
   "homepage": "https://github.com/hendrychjan/koishi-api#readme",
   "devDependencies": {
+    "apidoc": "^0.51.0",
     "jest": "^27.1.0",
+    "jsdoc": "^3.6.10",
     "supertest": "^6.1.6"
   },
   "dependencies": {
-    "morgan": "^1.10.0",
     "@joi/date": "^2.1.0",
     "bcrypt": "^5.0.1",
     "compression": "^1.7.4",
@@ -36,13 +39,14 @@
     "jsonwebtoken": "^8.5.1",
     "jwt-decode": "^3.1.2",
     "lodash": "^4.17.21",
-    "mongoose": "^6.2.6",
+    "mongoose": "^6.2.10",
+    "morgan": "^1.10.0",
     "node-telegram-bot-api": "^0.56.0",
-    "nodemailer": "^6.6.3",
+    "nodemailer": "^6.7.3",
     "object-to-xml": "^2.0.0",
     "socket.io": "^4.4.1",
-    "winston": "^3.3.3",
+    "winston": "^3.7.2",
     "winston-mongodb": "^5.0.7",
-    "xlsx": "^0.18.3"
+    "xlsx": "^0.18.5"
   }
 }

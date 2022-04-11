@@ -1,6 +1,7 @@
 # Custom
 devstart.sh
 config.json
+.vscode
 
 # Logs
 logs

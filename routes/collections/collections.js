@@ -2,25 +2,25 @@ const express = require("express");
 const _ = require("lodash");
 const Joi = require("joi");
 const router = express.Router();
-const auth = require("../middleware/auth");
-const validateObjID = require("../middleware/validateObjID");
-const { User } = require("../models/user");
+const auth = require("../../middleware/auth");
+const validateObjID = require("../../middleware/validateObjID");
+const { User } = require("../../models/user");
 const {
   Collection,
   checkEditPermissions,
   getCollection,
   getUserByEmail,
-} = require("../models/collection");
-const { CollectionData, validateRowPayload } = require("../models/collectionData");
-const { ActionToken } = require("../models/actionToken");
+} = require("../../models/collection");
+const { CollectionData, validateRowPayload } = require("../../models/collectionData");
+const { ActionToken } = require("../../models/actionToken");
 const {
   CollectionModel,
   validateCollectionModel,
-} = require("../models/collectionModel");
+} = require("../../models/collectionModel");
 const {
   CollectionSettings,
   validateCollectionSettings,
-} = require("../models/collectionSettings");
+} = require("../../models/collectionSettings");
 
 // ===Collections===
 router.get("/public/:id", [validateObjID], async (req, res) => {
@@ -223,126 +223,6 @@ router.get("/:id/model", [validateObjID, auth], async (req, res) => {
   if (!collectionModel)
     return res.status(404).send("This collection has no model struct.");
   else return res.status(200).send(collectionModel);
-});
-
-// ===CollectionData===
-router.get("/:id/data", [validateObjID, auth], async (req, res) => {
-  // Get the parent (collection)
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Get the collection data
-  const collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData)
-    return res.status(404).send("This collection has no data struct.");
-  else return res.status(200).send(collectionData);
-});
-
-router.post("/:id/data", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Check for edit permissions
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
-
-  // Get the collection model and validate the payload
-  let collectionModel = await CollectionModel.findOne({
-    parent: collection._id,
-  });
-  let validationErrorMessages = validateRowPayload(collectionModel, req.body);
-  if (validationErrorMessages.length > 0)
-    return res.status(400).send(validationErrorMessages);
-
-  // Get the collection data
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData)
-    return res.status(404).send("This collection has no data struct.");
-
-  // Add new data record
-  collectionData.value.push(req.body);
-
-  // Update the collection data struct in db
-  collectionData = await CollectionData.findByIdAndUpdate(
-    collectionData._id,
-    _.omit(collectionData, ["_id", "__v"]),
-    { new: true }
-  );
-  return res.status(201).send("Added new row.");
-});
-
-router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Check for edit permissions
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
-
-  // Get the collection model and validate the payload
-  let collectionModel = await CollectionModel.findOne({
-    parent: collection._id,
-  });
-  let validationErrorMessages = validateRowPayload(collectionModel, req.body);
-  if (validationErrorMessages.length > 0)
-    return res.status(400).send(validationErrorMessages);
-
-  // Get the collection data
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData)
-    return res.status(404).send("This collection has no data struct.");
-
-  collectionData.value[req.params.index] = req.body;
-
-  // Save the edited collection data struct to db
-  collectionData = await CollectionData.findByIdAndUpdate(
-    collectionData._id,
-    _.omit(collectionData, ["_id", "__v"]),
-    { new: true }
-  );
-  return res.status(200).send(`Edited row at index ${req.params.index}`);
-});
-
-router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Check for edit permissions
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
-
-  // Get the collection data
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData)
-    return res.status(404).send("This collection has no data struct.");
-
-  // Delete desired row
-  collectionData.value.splice(req.params.index, 1);
-
-  // Save the edited collection data struct to db
-  collectionData = await CollectionData.findByIdAndUpdate(
-    collectionData._id,
-    _.omit(collectionData, ["_id", "__v"]),
-    { new: true }
-  );
-  return res.status(200).send(`Removed row at index ${req.params.index}`);
 });
 
 // ===CollectionSettings===
