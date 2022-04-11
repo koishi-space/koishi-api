@@ -210,21 +210,6 @@ router.delete("/:id", [validateObjID, auth], async (req, res) => {
   }
 });
 
-// ===CollectionModel===
-router.get("/:id/model", [validateObjID, auth], async (req, res) => {
-  // Get the parent (collection)
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Get the collection model
-  const collectionModel = await CollectionModel.findOne({
-    parent: collection._id,
-  });
-  if (!collectionModel)
-    return res.status(404).send("This collection has no model struct.");
-  else return res.status(200).send(collectionModel);
-});
-
 // ===CollectionSettings===
 router.get("/:id/settings", [validateObjID, auth], async (req, res) => {
   // Get the parent (collection)

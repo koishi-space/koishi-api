@@ -7,7 +7,7 @@
     "test": "jest --detectOpenHandles --runInBand",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "docs": "node_modules/apidoc/bin/apidoc -i routes -o apidoc"
+    "docs": "apidoc-swagger -i routes/ -o docs"
   },
   "repository": {
     "type": "git",
@@ -45,6 +45,7 @@
     "nodemailer": "^6.7.3",
     "object-to-xml": "^2.0.0",
     "socket.io": "^4.4.1",
+    "swagger-ui-express": "^4.3.0",
     "winston": "^3.7.2",
     "winston-mongodb": "^5.0.7",
     "xlsx": "^0.18.5"

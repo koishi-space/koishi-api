@@ -2,6 +2,8 @@ const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
+const swaggerUi =  require('swagger-ui-express');
+const swaggerDocument = require('../docs/swagger.json');
 
 // Routes
 const auth = require("../routes/auth");
@@ -9,7 +11,8 @@ const users = require("../routes/users");
 const logs = require("../routes/logs");
 const ping = require("../routes/ping");
 const collections = require("../routes/collections/collections");
-const collectionData = require("../routes/collections/collectionData/collectionData");
+const collectionData = require("../routes/collections/collectionData");
+const collectionModel = require("../routes/collections/collectionModel");
 const tools = require("../routes/tools");
 
 const error = require("../middleware/error");
@@ -34,8 +37,10 @@ module.exports = function (app) {
   app.use("/logs", logs);
   app.use("/collections", collections);
   app.use("/collections", collectionData);
+  app.use("/collections", collectionModel);
   app.use("/tools", tools);
 
   // Others
   app.use(error);
+  app.use('/api-docs', swaggerUi.serve,   swaggerUi.setup(swaggerDocument)); // Swagger documentation
 };

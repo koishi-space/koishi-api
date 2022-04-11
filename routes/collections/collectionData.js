@@ -1,20 +1,20 @@
 const express = require("express");
 const _ = require("lodash");
 const router = express.Router();
-const auth = require("../../../middleware/auth");
-const validateObjID = require("../../../middleware/validateObjID");
+const auth = require("../../middleware/auth");
+const validateObjID = require("../../middleware/validateObjID");
 const {
   checkEditPermissions,
   getCollection,
-} = require("../../../models/collection");
+} = require("../../models/collection");
 const {
   CollectionData,
   validateRowPayload,
-} = require("../../../models/collectionData");
-const { CollectionModel } = require("../../../models/collectionModel");
+} = require("../../models/collectionData");
+const { CollectionModel } = require("../../models/collectionModel");
 
 // ===CollectionData===
-// This endpoint handles everything regarding the data structure of a collection
+// This endpoint handles everything regarding the data set of a collection
 
 /**
  * @api {get} /collections/:id/data Request collection's dataset
@@ -133,8 +133,8 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
 
   // Add new data record and update the collection in db
   await CollectionData.findByIdAndUpdate(
-    {parent: collection._id},
-    { $push: {"value": req.body}},
+    { parent: collection._id },
+    { $push: { value: req.body } }
   );
 
   // Return a message informing about the result
@@ -215,18 +215,17 @@ router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
 
 /**
  * @api {delete} /collections/:id/data/:index Delete row at index
- * @apiName DeleteCollectionData
  * @apiGroup CollectionData
  *
  * @apiHeader x-auth-token Koishi API's authentication token
- * 
+ *
  * @apiParam {ObjectID} id Id of the collection
  * @apiParam {int} index Index of the row (index of the first row is "0")
- * 
+ *
  * @apiError (Error 403) {Text} Authentication You are not authorized to edit the collection
  * @apiError (Error 404) {Text} Collection Collection not found
  * @apiError (Error 404) {Text} CollectionData Collection has no data
- * 
+ *
  * @apiSuccess (Success 200) {Text} Message Removed row at index <index>
  */
 router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
