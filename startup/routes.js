@@ -3,7 +3,7 @@ const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
 const swaggerUi =  require('swagger-ui-express');
-const swaggerDocument = require('../docs/swagger.json');
+const swaggerDocument = require('../docs/openapi.json');
 
 // Routes
 const auth = require("../routes/auth");
@@ -13,6 +13,7 @@ const ping = require("../routes/ping");
 const collections = require("../routes/collections/collections");
 const collectionData = require("../routes/collections/collectionData");
 const collectionModel = require("../routes/collections/collectionModel");
+const collectionSettings = require("../routes/collections/collectionSettings");
 const tools = require("../routes/tools");
 
 const error = require("../middleware/error");
@@ -38,6 +39,7 @@ module.exports = function (app) {
   app.use("/collections", collections);
   app.use("/collections", collectionData);
   app.use("/collections", collectionModel);
+  app.use("/collections", collectionSettings);
   app.use("/tools", tools);
 
   // Others
