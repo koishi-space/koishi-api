@@ -3,7 +3,11 @@ const jwt = require("jsonwebtoken");
 const config = require("config");
 const Joi = require("joi");
 
-// Mongodb data schema
+/**
+ * Koishi user
+ */
+
+// MongoDB table schema
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -19,6 +23,11 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
+/**
+ * Encode a user info into a JWT token that is passed around in the
+ * "x-auth-token" and used for authentication and authorization
+ * @returns {string} The JWT token
+ */
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
     {
@@ -34,6 +43,11 @@ userSchema.methods.generateAuthToken = function () {
   return token;
 };
 
+/**
+ * Validate a user object
+ * @param {Object} user The user to validate
+ * @returns {ValidationError?} If the payload is invalid, returns the error object
+ */
 function validateUser(user) {
   const schema = Joi.object({
     _id: Joi.any(),
@@ -49,7 +63,10 @@ function validateUser(user) {
   return schema.validate(user);
 }
 
+// Create a mongoose model
 const User = mongoose.model("User", userSchema);
 
-module.exports.User = User;
-module.exports.validateUser = validateUser;
+module.exports = {
+  User,
+  validateUser,
+};

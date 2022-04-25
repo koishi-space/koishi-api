@@ -3,12 +3,17 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const { User } = require("../models/user");
-
-// NOTE: "auth" endpoint serves just as JsonWebToken generator for valid users
-// registering new users and user management is handled in "users" endpoint
-
 const router = express.Router();
 
+/**
+ * Generate JWT tokens for users to verify themself
+ * NOTE: "auth" endpoint serves just as JsonWebToken generator for valid users
+ * registering new users and user management is handled in "users" endpoint
+ */
+
+/** POST /auth
+ * Authenticate a user and return a JWT token
+ */
 router.post("/", async (req, res) => {
   const { error } = validate(req.body);
   if (error) return res.status(400).send(error.details[0].message);
@@ -28,12 +33,10 @@ router.post("/", async (req, res) => {
 });
 
 /**
- * Validation of user login credentials - login data structure different
+ * Validation of user login credentials - login data structure is different
  * from register data structure
- *
- * @param {object} req original req object
- * @return {boolean} true - login credentials are in correct data form
- * @return {boolean} false - login credentials are not correct data form
+ * @param {object} req The original request object
+ * @return {?ValidationError} Return validation error if user login credentials are invalid
  */
 function validate(req) {
   const schema = Joi.object({

@@ -2,6 +2,14 @@ const mongoose = require("mongoose");
 const winston = require("winston");
 const config = require("config");
 
+/**
+ * Manage DB connections
+ */
+
+/**
+ * Connect to a MongoDB database using the mongoose package
+ * @returns {void}
+ */
 module.exports = function () {
   let conn = config.get("db");
 

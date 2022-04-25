@@ -1,0 +1,765 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Koishi API",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "https://koishi-api.nechapu.to",
+      "description": "The official Koishi API server"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Koishi API running on localhost"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "ObjectId": {
+        "type": "string",
+        "example": "625401f6ffd69c32c336e0ee"
+      },
+      "x-auth-token": {
+        "type": "string",
+        "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2MjBmOWNjYzc4NWFkMjNhNTkwNWJkOTgiLCJuYW1lIjoiSG9uemEiLCJlbWFpbCI6ImhvbnphQG5lY2hhcHUudG8iLCJzdGF0dXMiOiJ2ZXJpZmllZCIsImlzQWRtaW4iOnRydWUsImlhdCI6MTY0OTc1MzU0OH0.loyrUX_qXMLG5hyi9_Vcudst36KsEIqMA8gZzIRAEwA"
+      },
+      "UserCredentials": {
+        "type": "object",
+        "description": "Your user credentials.",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "email": "user@gmail.com",
+          "password": "jdiow896Dst5"
+        }
+      },
+      "User": {
+        "type": "array",
+        "description": "User data the way it is stored in the DB",
+        "items": {
+          "type": "object",
+          "properties": {
+            "_id": {
+              "$ref": "#/components/schemas/ObjectId"
+            },
+            "name": {
+              "type": "string",
+              "example": "Hayley"
+            },
+            "email": {
+              "type": "string",
+              "example": "hayley@gmail.com"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "verified"]
+            },
+            "isAdmin": {
+              "type": "boolean"
+            },
+            "verificationCode": {
+              "type": "string",
+              "example": "c2775912ebc49c4211365d25b50f90f2"
+            },
+            "collections": {
+              "type": "array",
+              "items": {
+                "description": "ObjectIDs referencing all the user's collections, including those that the user accepted share invite for.",
+                "$ref": "#/components/schemas/ObjectId"
+              }
+            }
+          }
+        }
+      },
+      "Collection": {
+        "type": "object",
+        "description": "A base structure of a data collection",
+        "properties": {
+          "_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "title": {
+            "type": "string",
+            "example": "Server monitoring"
+          },
+          "owner": {
+            "description": "ObjectID referencing the collection's owner",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "sharedTo": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "userEmail": {
+                  "type": "string",
+                  "example": "guy@gmail.com"
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["view", "edit"]
+                }
+              }
+            }
+          },
+          "model": {
+            "description": "ObjectID referencing the collection's model",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "data": {
+            "description": "ObjectID referencing the collection's data set",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "settings": {
+            "type": "array",
+            "description": "An array of ObjectIDs referencing the collection's settings presets",
+            "items": {
+              "type": "object",
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          "actions": {
+            "description": "ObjectID referencing the collection's actions module",
+            "$ref": "#/components/schemas/ObjectId"
+          }
+        }
+      },
+      "CollectionModel": {
+        "type": "object",
+        "description": "This object holds the definition of a collection's data structure (columns and data types)",
+        "properties": {
+          "_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "parent": {
+            "description": "ObjectID referencing the collection that this model is for",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "columnName": {
+                  "type": "string",
+                  "example": "CPU usage"
+                },
+                "dataType": {
+                  "type": "string",
+                  "enum": ["text", "number", "date", "time", "bool"]
+                },
+                "unit": {
+                  "type": "string",
+                  "nullable": true,
+                  "example": "%"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CollectionSettings": {
+        "description": "Properties that Recharts.js uses to render graphs and charts on the web.",
+        "type": "object",
+        "properties": {
+          "_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "parent": {
+            "description": "ObjectID that references the parent collection of this settings preset",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "name": {
+            "type": "string",
+            "example": "Default preset"
+          }
+        }
+      },
+      "CollectionData": {},
+      "CollectionActions": {
+        "description": "Set of rules that run every time a new row is added to the collection data set",
+        "type": "object",
+        "properties": {
+          "_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "parent": {
+            "description": "ObjectID that references the parent collection of this actions model",
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "connectors": {
+            "type": "object",
+            "properties": {
+              "telegram": {
+                "type": "object",
+                "properties": {
+                  "chatId": {
+                    "type": "string",
+                    "example": "-1001727750422"
+                  },
+                  "botToken": {
+                    "type": "string",
+                    "example": "3101380858:ANHcwjvLlkX6ffRBGysAVqEAjEJ7XkrRzJ0"
+                  }
+                }
+              },
+              "email": {
+                "type": "object",
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "example": "smtp.seznam.cz"
+                  },
+                  "user": {
+                    "type": "string",
+                    "example": "jana@seznam.cz"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "jaiu7983h34oH"
+                  }
+                }
+              }
+            }
+          },
+          "value": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "connector": {
+                  "type": "string",
+                  "enum": ["telegram", "email"]
+                },
+                "column": {
+                  "type": "string",
+                  "example": "CPU usage"
+                },
+                "operand": {
+                  "type": "string",
+                  "enum": ["<", "<=", ">", ">=", "="]
+                },
+                "target": {
+                  "type": "string",
+                  "example": "90"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ActionToken": {
+        "description": "Used to confirm actions that may have fatal impact",
+        "type": "object",
+        "properties": {
+          "_id": {
+            "$ref": "#/components/schemas/ObjectId"
+          },
+          "category": {
+            "type": "string",
+            "description": "For now only sharing and deleting collections",
+            "enum": ["delete", "share"]
+          },
+          "purpose": {
+            "type": "string",
+            "description": "A string explaining the purpose of the action token",
+            "example": "Delete collection \"Test collection\""
+          },
+          "userId": {
+            "$ref": "#/components/schemas/ObjectId",
+            "description": "References a user who issued this action token"
+          },
+          "targetId": {
+            "$ref": "#/components/schemas/ObjectId",
+            "description": "References whatever is the action token's target (depends on the use case)"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "authToken": {
+        "type": "apiKey",
+        "name": "x-auth-token",
+        "in": "header"
+      }
+    }
+  },
+  "paths": {
+    "/ping": {
+      "get": {
+        "tags": ["Ping"],
+        "description": "Test if the API is running",
+        "responses": {
+          "200": {
+            "description": "All OK"
+          }
+        }
+      }
+    },
+    "/ping/{id}": {
+      "get": {
+        "tags": ["Ping"],
+        "description": "Check if the provided id is a valid MongoDB ObjectId.",
+        "parameters": [
+          {
+            "name": "id",
+            "description": "MongoDB ObjectId",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            },
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The given id is valid."
+          },
+          "400": {
+            "description": "Provided string is not a valid ObjectId"
+          }
+        }
+      }
+    },
+    "/ping/error": {
+      "get": {
+        "tags": ["Ping"],
+        "description": "Manually invoke an exception to test how the API handles it. (returns code 500)",
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Internal server error"
+          },
+          "401": {
+            "description": "Access denied. No token provided."
+          }
+        }
+      }
+    },
+    "/ping/auth": {
+      "get": {
+        "tags": ["Ping"],
+        "description": "Provide an x-auth-token and check if it is valid.",
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The token is valid and you can use it to authenticate yourself."
+          },
+          "400": {
+            "description": "Access denied. Invalid token."
+          }
+        }
+      }
+    },
+    "/ping/admin": {
+      "get": {
+        "tags": ["Ping"],
+        "description": "Check if the provided token has admin priviledges.",
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The token is admin's."
+          },
+          "403": {
+            "description": "Not authorized. - meaning the token does not have admin access level."
+          },
+          "400": {
+            "description": "Access denied. Invalid token."
+          }
+        }
+      }
+    },
+    "/auth": {
+      "post": {
+        "tags": ["Auth"],
+        "description": "Send your user credentials and recieve the x-auth-token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated, x-auth-token returned."
+          },
+          "400": {
+            "description": "Wrong username or password."
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "description": "Get all registered users.",
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not authorized. - meaning your token does not have the admin access level."
+          }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "description": "Register a new user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Pam"
+                  },
+                  "email": {
+                    "type": "string",
+                    "example": "pamela@gmail.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "NdawAS9sA62"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User successfully registered, returns a x-auth-token",
+            "content": {
+              "plain/text": {
+                "schema": {
+                  "$ref": "#/components/schemas/x-auth-token"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "This email is already registered"
+          }
+        }
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "description": "Get information about the user that is encoded in the provided x-auth-token",
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/users/verify": {
+      "post": {
+        "tags": ["Users"],
+        "description": "If the email verification is enabled, this endpoint is used to verify a newly registered user.",
+        "parameters": [
+          {
+            "description": "The verification token (is part of an url provided in auto generated verification emal.",
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "612ace0f91f86cf37a3d94a84af1f543"
+            }
+          }
+        ],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified - returns updated JWT token (the old one has to be replaced, still shows the user status as \"pending\")"
+          },
+          "400": {
+            "description": "Invalid token. / User has already been verified."
+          }
+        }
+      }
+    },
+    "/collections": {
+      "get": {
+        "description": "Get all collections",
+        "tags": ["Collections"],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a list of all collections you own or you are subscribed to.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Collection"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Create a new collection",
+        "tags": ["Collections"],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Collection title",
+                    "example": "Server monitoring"
+                  },
+                  "model": {
+                    "type": "array",
+                    "description": "A list of columns defining the collection data structure",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "columnName": {
+                          "type": "string",
+                          "example": "CPU Usage"
+                        },
+                        "dataType": {
+                          "type": "string",
+                          "enum": ["number", "text", "date", "time", "bool"]
+                        },
+                        "unit": {
+                          "type": "string",
+                          "example": "%",
+                          "nullable": true
+                        }
+                      } 
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed"
+          }
+        }
+      }
+    },
+    "/collections/{id}": {
+      "get": {
+        "tags": ["Collections"],
+        "description": "Get a collection specified by it's id (ObjectID)",
+        "parameters": [
+          {
+            "name": "id",
+            "description": "ObjectID referencing a collection",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "noPopulate",
+            "description": "By default, the returned collection has all its fields populated - that may lead into the returned json being very large. Setting ?noPopulate to \"true\" will return the collection without it's fields populated.",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "example": "false"
+            }
+          }
+        ],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Collection"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found."
+          }
+        }
+      },
+      "put": {
+        "description": "Change a collection's title",
+        "tags": ["Collections"],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "ObjectID referencing a collection",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "New name"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Collection's title changed (returns the updated collection)"
+          },
+          "404": {
+            "description": "Collection not found"
+          }
+        }
+      },
+      "delete": {
+        "description": "Delete a collection. At first, you only supply the target collection's id. Nothing gets deleted, you only recieve an action token, that you then use to confirm the action (deleting a collection) by supplying it via the \"actionToken\" parameter in query.",
+        "tags": ["Collections"],
+        "parameters": [
+          {
+            "name": "id",
+            "description": "ObjectID referencing a collection",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          },
+          {
+            "name": "actionToken",
+            "description": "ID of the action token that confirms deleting a collection",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ObjectId"
+            }
+          }
+        ],
+        "security": [
+          {
+            "authToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns a token that is then used to confirm deleting the collection. (Or then confirms that the collection is deleted)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionToken"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Collection not found"
+          }
+        }
+      }
+    }
+  }
+}

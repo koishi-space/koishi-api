@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 const Joi = require("joi");
 
+/**
+ * A definition of the data structure of a collection.
+ */
+
+// MongoDB tabl schema
 const collectionModelSchema = new mongoose.Schema({
   parent: {
     type: mongoose.Schema.Types.ObjectId,
@@ -8,17 +13,25 @@ const collectionModelSchema = new mongoose.Schema({
   },
   value: [
     {
-      columnName: String, // <- Hashed
-      dataType: String, // <- text/number/date/time/bool
+      columnName: String,
+      dataType: String,
       unit: String,
     },
   ],
 });
 
+/**
+ * Validate the whole CollectionModel object schema
+ * @param {Object} payload The payload to validate
+ * @param {boolean} validateValues Whether to validate the inside collection data structure definition only
+ * @returns {ValidationError?} If the payload is invalid, returns the error object
+ */
 function validateCollectionModel(payload, validateValues) {
   const valueSchema = Joi.object({
     columnName: Joi.string().max(20).required(),
-    dataType: Joi.string().valid("text", "number", "date", "time", "bool").required(),
+    dataType: Joi.string()
+      .valid("text", "number", "date", "time", "bool")
+      .required(),
     unit: Joi.string().max(5),
   });
   let schema;
@@ -37,10 +50,13 @@ function validateCollectionModel(payload, validateValues) {
   return schema.validate(payload);
 }
 
+// Create a mongoose model
 const CollectionModel = mongoose.model(
   "CollectionModel",
   collectionModelSchema
 );
 
-module.exports.CollectionModel = CollectionModel;
-module.exports.validateCollectionModel = validateCollectionModel;
+module.exports = {
+  CollectionModel,
+  validateCollectionModel,
+};

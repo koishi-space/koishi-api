@@ -1,3 +1,8 @@
+/**
+ * Setup a socket.io server for realtime collections
+ * @param {Object} http Http server
+ * @returns {void}
+ */
 module.exports = function (http) {
   const io = require("socket.io")(http, {
     cors: {
@@ -6,8 +11,7 @@ module.exports = function (http) {
   });
 
   io.on("connection", (socket) => {
-    console.log("SOCKET / connect " + socket.id);
-
+    // Create a tunnel between the interface (data source) and a web (where the graph is displayed)
     socket.on("realtime session", ({ content, to }) => {
       socket.to(to).emit("realtime session", {
         content,
@@ -15,9 +19,9 @@ module.exports = function (http) {
       });
     });
 
+    // Manually end a connection
     socket.on("end", () => {
       socket.disconnect();
-      console.log("Client " + socket.id + "disconnected");
     });
   });
 };

@@ -2,138 +2,66 @@ const express = require("express");
 const _ = require("lodash");
 const router = express.Router();
 const auth = require("../../middleware/auth");
+const edit = require("../../middleware/edit");
+const view = require("../../middleware/view");
 const validateObjID = require("../../middleware/validateObjID");
-const {
-  checkEditPermissions,
-  getCollection,
-} = require("../../models/collection");
+const { CollectionActions } = require("../../models/collectionActions");
 const {
   CollectionData,
   validateRowPayload,
+  simplifyCollectionStruct,
 } = require("../../models/collectionData");
 const { CollectionModel } = require("../../models/collectionModel");
 
-// ===CollectionData===
-// This endpoint handles everything regarding the data set of a collection
-
 /**
- * @api {get} /collections/:id/data Request collection's dataset
- * @apiName GetCollecionData
- * @apiGroup CollectionData
- *
- * @apiHeader x-auth-token Koishi API's authentication token
- * 
- * @apiParam {ObjId} id Id of the collection
- *
- * @apiError (404) {Text} Collection Collection not found
- * @apiError (404) {Text} CollectionData Collection has no data
- * 
- * @apiSuccess {CollectionData[]} CollectionData Dataset of the specified collection
- * @apiSuccessExample {json} Example response:
- * {
-    "_id": "620914ef11cf792b60ede4ec",
-    "parent": "620914ef11cf792b60ede4ea",
-    "value": [
-        [
-            {
-                "column": "Category",
-                "data": "a",
-                "_id": "6209150911cf792b60ede50f"
-            },
-            {
-                "column": "Value",
-                "data": "1",
-                "_id": "6209150911cf792b60ede510"
-            }
-        ],
-        [
-            {
-                "column": "Category",
-                "data": "b",
-                "_id": "6209151711cf792b60ede52f"
-            },
-            {
-                "column": "Value",
-                "data": "3",
-                "_id": "6209151711cf792b60ede530"
-            }
-        ]
-    ],
-    "__v": 0
-}
+ * This endpoint handles everything regarding the data set of a collection
  */
-router.get("/:id/data", [validateObjID, auth], async (req, res) => {
-  // Get the parent (collection)
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
 
+/** GET /collections/:id/data
+ * Get a collection data
+ * If a "simplify" query is specified, return the data in a simplified format
+ */
+router.get("/:id/data", [validateObjID, auth, view], async (req, res) => {
   // Get the collection data
-  const collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection has no data.");
+  const collectionData = (
+    await CollectionData.findOne({
+      parent: req.params.id,
+    })
+  ).toObject();
+  if (!collectionData) return res.status(404).send("Not found");
+
+  // Check if the collection should be simplified
+  if (req.query.simplify && req.query.simplify.toString() === "true") {
+    collectionData.value = simplifyCollectionStruct(collectionData.value);
+  }
+
   // Return the collection data payload
-  else return res.status(200).send(collectionData);
+  return res.status(200).send(collectionData);
 });
 
-/**
- * @api {post} /collections/:id/data Add new row to a collection
- * @apiName PostCollecionData
- * @apiGroup CollectionData
- *
- * @apiHeader x-auth-token Koishi API's authentication token
- * 
- * @apiParam {ObjectID} id Id of the collection
- * 
- * @apiBody {CollectionDataValue[]} The new row
- * 
- * @apiExample {json} Example row payload:
- * [
-    {
-        "column": "Category",
-        "data": "a"
-    },
-    {
-        "column": "Value",
-        "data": 23
-    }
-]
- * 
- * @apiError (Error 400) {Text} Row Row is not valid
- * @apiError (Error 403) {Text} Authentication You are not authorized to edit the collection
- * @apiError (Error 404) {Text} Collection Collection not found
- * @apiError (Error 404) {Text} CollectionData Collection has no data
- * 
- * @apiSuccess (Success 201) {Text} Message Added new row
+/** POST /collections/:id/data
+ * Add new row to a collection
  */
-router.post("/:id/data", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
-
-  // Check if the user has edit permissions for this collection
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
-
+router.post("/:id/data", [validateObjID, auth, edit], async (req, res) => {
   // Get the collection model and validate the payload (new row)
   let collectionModel = await CollectionModel.findOne({
-    parent: collection._id,
+    parent: req.params.id,
   });
   let validationErrorMessages = validateRowPayload(collectionModel, req.body);
   if (validationErrorMessages.length > 0)
     return res.status(400).send(validationErrorMessages);
 
-  // Get the collection data
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
+  // Run "actions" module
+  let collectionActions = await CollectionActions.findOne({
+    parent: req.params.id,
   });
-  if (!collectionData) return res.status(404).send("Collection has no data.");
+  // This is not awaited, because we dont want to wait in case
+  // an event report is triggered
+  collectionActions.runActions(req.body, req.collection.title, req.params.id);
 
   // Add new data record and update the collection in db
-  await CollectionData.findByIdAndUpdate(
-    { parent: collection._id },
+  await CollectionData.findOneAndUpdate(
+    { parent: req.params.id },
     { $push: { value: req.body } }
   );
 
@@ -141,124 +69,64 @@ router.post("/:id/data", [validateObjID, auth], async (req, res) => {
   return res.status(201).send("Added new row.");
 });
 
-/**
- * @api {put} /collections/:id/data/:index Edit row at index (starting with "0")
- * @apiName PutCollectionData
- * @apiGroup CollectionData
- *
- * @apiHeader x-auth-token Koishi API's authentication token
- * 
- * @apiParam {ObjectID} id Id of the collection
- * @apiParam {int} index Index of the row (index of the first row is "0")
- * 
- * @apiBody {CollectionDataValue[]} The edited row
- * 
- * @apiExample {json} Example row payload:
- * [
-    {
-        "column": "Category",
-        "data": "a"
-    },
-    {
-        "column": "Value",
-        "data": 28
-    }
-]
- * 
- * @apiError (Error 400) {Text} Row Row is not valid
- * @apiError (Error 403) {Text} Authentication You are not authorized to edit the collection
- * @apiError (Error 404) {Text} Collection Collection not found
- * @apiError (Error 404) {Text} CollectionData Collection has no data
- * 
- * @apiSuccess (Success 200) {Text} Message Edited row at index <index>
+/** PUT /collections/:id/data/:index
+ * Edit row at an index (starting with "0") specified by URL param :id
  */
-router.put("/:id/data/:index", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
+router.put(
+  "/:id/data/:index",
+  [validateObjID, auth, edit],
+  async (req, res) => {
+    // Get the collection model and validate the payload
+    let collectionModel = await CollectionModel.findOne({
+      parent: req.params.id,
+    });
+    let validationErrorMessages = validateRowPayload(collectionModel, req.body);
+    if (validationErrorMessages.length > 0)
+      return res.status(400).send(validationErrorMessages);
 
-  // Check if the user has edit permissions for this collection
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
+    // Run "actions" module
+    let collectionActions = await CollectionActions.findOne({
+      parent: req.params.id,
+    });
+    // This is not awaited, because we dont want to wait in case
+    // an event report is triggered
+    collectionActions.runActions(req.body, req.collection.title, req.params.id);
 
-  // Get the collection data and check if the index is out of bounds
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection has no data.");
-  if (!collectionData.value[req.params.index])
-    return res.status(400).send("Index out of bounds.");
+    // Change the item in array "value" of CollectionData
+    await CollectionData.findOneAndUpdate(
+      { parent: req.params.id },
+      { $set: { [`value.${req.params.index}`]: req.body } }
+    );
 
-  // Get the collection model and validate the payload
-  let collectionModel = await CollectionModel.findOne({
-    parent: collection._id,
-  });
-  let validationErrorMessages = validateRowPayload(collectionModel, req.body);
-  if (validationErrorMessages.length > 0)
-    return res.status(400).send(validationErrorMessages);
+    // I didnt really find a way to get to know if the operation was successful (could go wrong when index out of bounds)
+    // so that could be the subject of future implementation
+    return res.status(200).send(`Edited row at index ${req.params.index}`);
+  }
+);
 
-  // Edit the specified row
-  collectionData.value[req.params.index] = req.body;
-
-  // Save the edited collection data to db
-  collectionData = await CollectionData.findByIdAndUpdate(
-    collectionData._id,
-    _.omit(collectionData, ["_id", "__v"]),
-    { new: true }
-  );
-
-  //
-  return res.status(200).send(`Edited row at index ${req.params.index}`);
-});
-
-/**
- * @api {delete} /collections/:id/data/:index Delete row at index
- * @apiGroup CollectionData
- *
- * @apiHeader x-auth-token Koishi API's authentication token
- *
- * @apiParam {ObjectID} id Id of the collection
- * @apiParam {int} index Index of the row (index of the first row is "0")
- *
- * @apiError (Error 403) {Text} Authentication You are not authorized to edit the collection
- * @apiError (Error 404) {Text} Collection Collection not found
- * @apiError (Error 404) {Text} CollectionData Collection has no data
- *
- * @apiSuccess (Success 200) {Text} Message Removed row at index <index>
+/** DELETE /collections/:id/data/:index
+ * Delete row at an index specified by URL param :id
  */
-router.delete("/:id/data/:index", [validateObjID, auth], async (req, res) => {
-  // Get the parent collection
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found.");
+router.delete(
+  "/:id/data/:index",
+  [validateObjID, auth, edit],
+  async (req, res) => {
+    // This is an old workaround for MongoDB - deleting an element from the collection specified by index
+    // NOTE: There may be a better solution, but this seems the least complicated
+    // ...see https://stackoverflow.com/questions/4588303/in-mongodb-how-do-you-remove-an-array-element-by-its-index
+    await CollectionData.findOneAndUpdate(
+      { parent: req.params.id },
+      { $unset: { [`value.${req.params.index}`]: 1 } }
+    );
+    await CollectionData.findOneAndUpdate(
+      { parent: req.params.id },
+      { $pull: { [`value`]: null } }
+    );
 
-  // Check if the user has edit permissions for this collection
-  if (!checkEditPermissions(collection, req.user))
-    return res
-      .status(403)
-      .send("You are not authorized to edit the collection.");
-
-  // Get the collection data
-  let collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection has no data.");
-
-  // Check if the index is out of bounds
-  if (!collectionData.value[req.params.index])
-    return res.status(400).send("Index out of bounds.");
-
-  // Delete the desired row
-  collectionData.value.splice(req.params.index, 1);
-
-  // Save the edited collection data struct to db
-  collectionData = await CollectionData.findByIdAndUpdate(
-    collectionData._id,
-    _.omit(collectionData, ["_id", "__v"]),
-    { new: true }
-  );
-  return res.status(200).send(`Removed row at index ${req.params.index}`);
-});
+    // I didnt really find a way to get to know if the operation was successful (could go wrong when index out of bounds)
+    // so that could be the subject of future implementation
+    return res.status(200).send(`Removed row at index ${req.params.index}`);
+  }
+);
 
 module.exports = router;

@@ -5,6 +5,14 @@ const { combine, printf } = format;
 require("winston-mongodb");
 const config = require("config");
 
+/**
+ * Manage server logs and their connectors
+ */
+
+/**
+ * Setup server logging, configure Winston
+ * @returns {void}
+ */
 module.exports = function () {
   winston.configure({
     format: combine(

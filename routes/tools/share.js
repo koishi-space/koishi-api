@@ -1,146 +1,20 @@
 const express = require("express");
-const router = express.Router();
-const auth = require("../middleware/auth");
-const fs = require("fs");
-const path = require("path");
-const validateObjID = require("../middleware/validateObjID");
-const { Collection, validateCollectionShare, getUserByEmail, getCollection } = require("../models/collection");
-const { CollectionData } = require("../models/collectionData");
-const { CollectionSettings } = require("../models/collectionSettings");
-const { User } = require("../models/user");
-const winston = require("winston");
-const { ActionToken } = require("../models/actionToken");
+const validateObjID = require("../../middleware/validateObjID");
+const auth = require("../../middleware/auth");
+const { ActionToken } = require("../../models/actionToken");
+const { Collection, validateCollectionShare } = require("../../models/collection");
+const { User } = require("../../models/user");
 const Joi = require("joi");
-const o2x = require("object-to-xml");
-const xlsx = require("xlsx");
-const { validateCollectionModel, CollectionModel } = require("../models/collectionModel");
-const _ = require("lodash");
+const router = express.Router();
 
-router.get("/export/:id/json", [validateObjID, auth], async (req, res) => {
-  // Check ownership
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found");
+/**
+ * Share a collection to another Koishi user, or make it public 
+ * and accesible to the others
+ */
 
-  // Get collection data
-  const collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection is empty.");
-
-  // Parse to a simplified json structure
-  let contents = simplifyCollectionStruct(collectionData.value);
-
-  // Create a temporary file and send it to the client
-  let dir = path.join(
-    __dirname,
-    "..",
-    "temp",
-    "jsonexports",
-    `${getRandomFilename()}.json`
-  );
-  fs.writeFile(dir, JSON.stringify(contents, null, 2), (err, file) => {
-    if (err) {
-      res.status(400).send(err);
-      throw err;
-    }
-    res.status(200).download(dir, collection.title.trim() + ".json", (err) => {
-      if (err) winston.error(err);
-      fs.unlink(dir, (err) => {
-        throw err;
-      });
-    });
-  });
-});
-
-router.get("/export/:id/xml", [validateObjID, auth], async (req, res) => {
-  // Check ownership
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found");
-
-  // Get collection data
-  const collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection is empty.");
-
-  // Parse to a simplified json structure
-  let contents = simplifyCollectionStruct(collectionData.value);
-
-  // Create a temporary file
-  let dir = path.join(
-    __dirname,
-    "..",
-    "temp",
-    "xmlexports",
-    `${getRandomFilename()}.xml`
-  );
-
-  // Parse to XML
-  var xml = o2x({
-    '?xml version="1.0" encoding="UTF-8"?': null,
-  });
-  xml += "<root>"
-  for (let row of contents) {
-    let rowParsed = {};
-    for (let key of Object.keys(row))
-      rowParsed[key.replace(/\s/g, "_")] = row[key];
-    xml += o2x({row: rowParsed});
-  }
-  xml += "</root>";
-
-  // Send the file to client
-  fs.writeFile(dir, xml, (err, file) => {
-    if (err) {
-      res.status(400).send(err);
-      throw err;
-    }
-    res.status(200).download(dir, collection.title.trim() + ".xml", (err) => {
-      if (err) winston.error(err);
-      fs.unlink(dir, (err) => {
-        throw err;
-      });
-    });
-  });
-});
-
-router.get("/export/:id/xlsx", [validateObjID, auth], async (req, res) => {
-  // Check ownership
-  const collection = await getCollection(req.params.id, req.user);
-  if (!collection) return res.status(404).send("Collection not found");
-
-  // Get collection data
-  const collectionData = await CollectionData.findOne({
-    parent: collection._id,
-  });
-  if (!collectionData) return res.status(404).send("Collection is empty.");
-
-  // Parse to a simplified json structure
-  let contents = simplifyCollectionStruct(collectionData.value);
-
-  // Create a temporary file
-  let dir = path.join(
-    __dirname,
-    "..",
-    "temp",
-    "xlsxexports",
-    `${getRandomFilename()}.xlsx`
-  );
-
-  // Parse to XLSX
-  const sheet = xlsx.utils.json_to_sheet(contents)
-  const book = xlsx.utils.book_new()
-  xlsx.utils.book_append_sheet(book, sheet, collection.title.trim() + ".xlsx");
-  xlsx.writeFile(book, dir);
-  
-  // Send the file to client
-  res.status(200).download(dir, collection.title.trim() + ".xlsx", (err) => {
-    if (err) winston.error(err);
-    fs.unlink(dir, (err) => {
-      winston.error(err);
-    });
-  });
-});
-
+/** GET /tools/share/invites
+ * Get all share invites
+ */
 router.get("/share/invites", [auth], async (req, res) => {
   const tokens = await ActionToken.find({
     userId: req.user._id,
@@ -149,6 +23,11 @@ router.get("/share/invites", [auth], async (req, res) => {
   return res.status(200).send(tokens);
 });
 
+/** PUT /tools/share/accept/:token
+ * Accept a share.
+ * NOTE: When user accepts a share, the target collection will be added
+ * to the list of collectinos for that user
+ */
 router.put("/share/accept/:token", [auth], async (req, res) => {
   // Get the action token
   let token = await ActionToken.findById(req.params.token);
@@ -171,6 +50,9 @@ router.put("/share/accept/:token", [auth], async (req, res) => {
   return res.status(200).send("Collection share accepted.");
 });
 
+/** PUT /tools/share/decline/:token
+ * Decline an invite for a collection share
+ */
 router.put("/share/decline/:token", [auth], async (req, res) => {
   // Remove the action token
   let token = await ActionToken.findByIdAndDelete(req.params.token);
@@ -179,6 +61,9 @@ router.put("/share/decline/:token", [auth], async (req, res) => {
   return res.status(200).send("Collection share declined.");
 });
 
+/** PUT /tools/share/add/:id
+ * Share a collection specified by it's id to another Koishi user
+ */
 router.post("/share/add/:id", [validateObjID, auth], async (req, res) => {
   // Check ownership
   let collection = await Collection.findOne({
@@ -210,7 +95,9 @@ router.post("/share/add/:id", [validateObjID, auth], async (req, res) => {
   }
 
   // Check if the share target user is registered on Koishi - if not, DO NOT let the user know for security reasons
-  const targetUserId = await getUserIdByEmail(req.body.userEmail);
+  const targetUserId = (
+    await User.findOne({ email: req.body.userEmail })
+  ).toObject()._id;
 
   if (targetUserId) {
     // If it is just a share role update, edit the user directly; if not, send an action token as a form of invite
@@ -242,6 +129,9 @@ router.post("/share/add/:id", [validateObjID, auth], async (req, res) => {
   res.status(200).send(`Collection shared.`);
 });
 
+/** PUT /tools/share/remove/:id/all
+ * Cancel all shares for a collection specified by an id
+ */
 router.put("/share/remove/:id/all", [auth], async (req, res) => {
   // Check ownership
   let collection = await Collection.findOne({
@@ -274,6 +164,9 @@ router.put("/share/remove/:id/all", [auth], async (req, res) => {
   res.status(200).send(`Cancelled all shares`);
 });
 
+/** PUT /tools/share/remove/:id
+ * Cancel sharing bond with a specified User (specified by an email in req.body)
+ */
 router.put("/share/remove/:id", [auth], async (req, res) => {
   // Check ownership
   let collection = await Collection.findOne({
@@ -320,6 +213,9 @@ router.put("/share/remove/:id", [auth], async (req, res) => {
   res.status(200).send(`Stopped sharing with ${req.body.userEmail}`);
 });
 
+/** PUT /tools/visibility/public/:id
+ * Make a collection public
+ */
 router.put("/visibility/public/:id", [auth], async (req, res) => {
   // Check ownership
   let collection = await Collection.findOne({
@@ -333,6 +229,9 @@ router.put("/visibility/public/:id", [auth], async (req, res) => {
   return res.status(200).send(`Collection ${collection.title} is now public.`);
 });
 
+/** PUT /tools/visibility/private/:id
+ * Make a collection private again
+ */
 router.put("/visibility/private/:id", [auth], async (req, res) => {
   // Check ownership
   let collection = await Collection.findOne({
@@ -345,93 +244,5 @@ router.put("/visibility/private/:id", [auth], async (req, res) => {
   await Collection.findByIdAndUpdate(collection._id, { isPublic: false });
   return res.status(200).send(`Collection ${collection.title} is now private.`);
 });
-
-router.get("/empty/settings", [], async (req, res) => {
-  let settings = new CollectionSettings();
-  res.status(200).send(settings);
-});
-
-router.post("/realtime/save", [auth], async (req, res) => {
-  // Check and set ownership
-  let user = await getUserByEmail(req.user.email, false);
-  if (!user) return res.status(400).send("Creator does not exist.");
-
-  // Prepare the collection structure
-  let collection = new Collection({
-    title: req.body.title,
-    owner: user._id,
-  });
-
-  // Create and set the supplied data record
-  // Cast the data structure to fit the one needed in db
-  let dataCasted = [];
-
-  for (const row of req.body.sessionData) {
-    let rowCasted = [];
-    Object.keys(row).forEach(k => {
-      rowCasted.push({
-        column: k,
-        data: row[k],
-      });
-    });
-    dataCasted.push(rowCasted);
-  }
-  let collectionData = new CollectionData({
-    parent: collection._id,
-    value: dataCasted,
-  });
-  collection.data = collectionData._id;
-
-  // Create and set collection model if it is valid
-  let error = validateCollectionModel(req.body.model, true).error;
-  if (error) return res.status(400).send(error.details[0].message);
-  let collectionModel = new CollectionModel({
-    parent: collection._id,
-    value: req.body.model,
-  });
-  collection.model = collectionModel._id;
-
-  // Save the existing graph settings as the default setting preset
-  let collectionSettings = new CollectionSettings({...req.body.settings, parent: collection._id});
-  let presets = [];
-  presets.push(collectionSettings._id);
-  collection.settings = presets;
-
-  // Save the collection and its parts and add it to user's collections
-  user.collections.push(collection._id);
-  await User.findByIdAndUpdate(user._id, _.omit(user, ["__v", "_id"]));
-  await collectionSettings.save();
-  await collectionData.save();
-  await collectionModel.save();
-  await collection.save();
-
-  return res.status(201).send(collection);
-});
-
-function simplifyCollectionStruct(payload) {
-  let simplified = new Array();
-  let newItem = {};
-  for (let x of payload) {
-    for (let y of x) {
-      newItem[y.column.toLowerCase()] = y.data;
-    }
-    simplified.push(newItem);
-    newItem = {};
-  }
-  return simplified;
-}
-
-function getRandomFilename() {
-  return Math.floor(Math.random() * 1000000000);
-}
-
-async function getUserIdByEmail(email, idOnly = true) {
-  let user = await User.findOne({
-    email: email,
-  });
-
-  if (idOnly) return user ? user._id : null;
-  else return user ? user : null;
-}
 
 module.exports = router;

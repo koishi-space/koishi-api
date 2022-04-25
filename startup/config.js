@@ -1,7 +1,18 @@
 const config = require("config");
 
 /**
- * Checks if all required environment variables are set
+ * Setup environment for the entire API server.
+ * How does the setup work?
+ * 1. environment variables are exported in the .env file
+ * 2. those variables are then "activated" using the "dotenv" package
+ * 3. as they are activted, package "config" will read those 
+ *    (have to be specified in /config/custom-environment-variables.json)
+ * 4. lastly, all env variables are validated by the function below, and available
+ *    with the "config" package
+ */
+
+/**
+ * Validates environment variables
  * @returns {void}
  * @throws ENV ERROR
  */

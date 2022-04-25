@@ -1,6 +1,12 @@
 const mongoose = require("mongoose");
 const Joi = require("joi");
 
+/**
+ * A definition of parameters that are used on the Koishi WEB by Recharts
+ * to render graphs.
+ */
+
+// MongoDB table schema
 const collectionSettingsSchema = new mongoose.Schema({
   parent: {
     type: mongoose.Schema.Types.ObjectId,
@@ -125,6 +131,11 @@ const collectionSettingsSchema = new mongoose.Schema({
   },
 });
 
+/**
+ * Validate the whole CollectionSettings object
+ * @param {Object} payload The payload to validate
+ * @returns {ValidationError?} If the payload is invalid, returns the error object
+ */
 function validateCollectionSettings(payload) {
   const axisSettingsSchema = Joi.object({
     dataKey: Joi.string().allow("").required(),
@@ -291,10 +302,13 @@ function validateCollectionSettings(payload) {
   return schema.validate(payload);
 }
 
+// Create a mongoose model
 const CollectionSettings = mongoose.model(
   "CollectionSettings",
   collectionSettingsSchema
 );
 
-module.exports.CollectionSettings = CollectionSettings;
-module.exports.validateCollectionSettings = validateCollectionSettings;
+module.exports = {
+  CollectionSettings,
+  validateCollectionSettings,
+};

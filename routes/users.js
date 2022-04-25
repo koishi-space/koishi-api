@@ -4,25 +4,36 @@ const express = require("express");
 const Joi = require("joi");
 const auth = require("../middleware/auth");
 const admin = require("../middleware/admin");
-const mailer = require("../services/mailer");
+const emailConnector = require("../services/emailConnector");
 const { User, validateUser } = require("../models/user");
-const validateObjID = require("../middleware/validateObjID");
-const decode = require("jwt-decode");
 const { Collection } = require("../models/collection");
 const config = require("config");
 const router = express.Router();
 
+/**
+ * Users management route
+ */
+
+/** GET /users
+ * List all registered users
+ */
 router.get("/", [auth, admin], async (req, res) => {
   let users = await User.find().sort("name");
   res.status(200).send(users);
 });
 
+/** GET /users/me
+ * Get a user details
+ */
 router.get("/me", auth, async (req, res) => {
   let user = await User.findById(req.user._id).select("-password");
   if (!user) return res.status(404).send("User under given id was not found.");
   res.status(200).send(user);
 });
 
+/** GET /users/:id
+ * Get info about a user specified by an id
+ */
 router.get("/:id", [auth, admin], async (req, res) => {
   let id = req.params.id;
   let user = await User.findById(id).select("-password");
@@ -32,6 +43,9 @@ router.get("/:id", [auth, admin], async (req, res) => {
   res.status(200).send(user);
 });
 
+/** POST /users
+ * Register a new user
+ */
 router.post("/", async (req, res) => {
   // Validate credentials
   req.body = _.omit(req.body, ["_id", "__v"]);
@@ -44,57 +58,78 @@ router.post("/", async (req, res) => {
 
   // If user is unique, create
   let user = new User(req.body);
-  // -> Hash password
+  // Hash the password
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(user.password, salt);
+
+  // By default, set the "admin" flag to false
   user.isAdmin = false;
-  user.status = "pending";
 
-  const genRanHex = (size) =>
-    [...Array(size)]
-      .map(() => Math.floor(Math.random() * 16).toString(16))
-      .join("");
-  let verificationCode = genRanHex(32);
-  user.verificationCode = verificationCode.toString();
-
+  // Check if user verification is enabled
   if (config.get("use_email").toString() === "true") {
-    await mailer.sendRegistrationVerificationEmail(user);
-  } else user.status = "verified";
+    // If email verification is enabled, set the status to "pending", ...
+    user.status = "pending";
 
-  user = await user.save(); // save user to database
+    // ...generate a verification token
+    const genRanHex = (size) =>
+      [...Array(size)]
+        .map(() => Math.floor(Math.random() * 16).toString(16))
+        .join("");
+    user.verificationCode = genRanHex(32);
 
-  // generate token for newly registered user
+    // ...and send a verification email
+    await emailConnector.sendAccountVerificationEmail(user);
+  } else {
+    // User verification is disabled
+    user.status = "verified";
+    user.verificationCode = "disabled";
+  }
+
+  // Save the registered user to database
+  user = await user.save();
+
+  // Generate auth token for the newly registered user, and return it
   let token = user.generateAuthToken();
-  user = _.pick(user, ["_id", "name", "email"]);
   res.status(200).send(token);
 });
 
+/** POST /users/verify
+ * Verify a user
+ */
 router.post("/verify", async (req, res) => {
+  // Validate the verification code
   const { error } = Joi.object({
     verificationCode: Joi.string()
       .pattern(/^[0-9a-f]{32}$/)
       .required(),
   }).validate(req.body);
   if (error) return res.status(404).send("Invalid token.");
+
+  // Get the corresponding user
   let dbUser = await User.findOne({
     verificationCode: req.body.verificationCode,
   });
-  if (!dbUser) res.status(400).send("Invalid token.");
-  else {
-    if (dbUser.status !== "pending")
-      return res.status(400).send("User has already been verified.");
-    else {
-      dbUser.status = "verified";
-      let verifiedUser = await User.findByIdAndUpdate(
-        dbUser._id,
-        _.omit(dbUser, ["_id", "__v", "verificationCode"]),
-        { new: true }
-      );
-      return res.status(200).send(verifiedUser.generateAuthToken());
-    }
-  }
+  if (!dbUser) return res.status(400).send("Invalid token.");
+
+  // Check if the user hasn't already been verified
+  if (dbUser.status !== "pending")
+    return res.status(400).send("User has already been verified.");
+
+  // Verify the user
+  dbUser.status = "verified";
+  let verifiedUser = await User.findByIdAndUpdate(
+    dbUser._id,
+    _.omit(dbUser, ["_id", "__v", "verificationCode"]),
+    { new: true }
+  );
+
+  // Return an updated auth token
+  return res.status(200).send(verifiedUser.generateAuthToken());
 });
 
+/** PUT /users/populate
+ * Populate a user with all it's collections (in case there was a fault in the database)
+ */
 router.put("/populate", [auth], async (req, res) => {
   let user = await User.findById(req.user._id);
   const collections = await Collection.find({ owner: user._id });
@@ -105,45 +140,5 @@ router.put("/populate", [auth], async (req, res) => {
   await User.findByIdAndUpdate(user._id, _.omit(user, ["__v", "_id"]));
   return res.status(200).send("Populated your collections.");
 });
-
-// FOR NOW DISABLED - needs security enhancement
-// router.put("/:id", [auth, validateObjID], async (req, res) => {
-//   let id = req.params.id;
-//   const {error} = validateUserForUpdate(req.body);
-//   if (!await User.findById(id)) return res.status(404).send("User was not found.");
-//   if (await checkIfDuplicite("email", req.body)) return res.status(400).send("This email is already registered.");
-//   if (error) return res.status(400).send(error.details[0].message);
-
-//   user = await User.findByIdAndUpdate(
-//     id,
-//     _.omit(req.body, ["_id", "__v"]),
-//     {new: true}
-//   ).select("-password");
-//   res.status(202).send(user);
-// });
-
-// FOR NOW DISABLED - needs security enhancement
-// router.delete("/:id", [auth, admin, validateObjID], async (req, res) => {
-//   let user = await User.findByIdAndDelete(req.params.id);
-//   if (!user) return res.status(404).send("User under given id was not found.");
-//   res.status(202).send(user);
-// });
-
-async function checkIfDuplicite(key, payload) {
-  let user = await User.findOne({ [key]: payload[key] });
-  if (user && user._id != payload._id) return true;
-  return false;
-}
-
-function validateUserForUpdate(user) {
-  const schema = Joi.object({
-    _id: Joi.any(),
-    __v: Joi.any(),
-    name: Joi.string().min(2).max(20).required(),
-    email: Joi.string().min(5).max(50).email().required(),
-  });
-
-  return schema.validate(user);
-}
 
 module.exports = router;

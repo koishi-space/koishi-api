@@ -7,7 +7,8 @@
     "test": "jest --detectOpenHandles --runInBand",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "docs": "apidoc-swagger -i routes/ -o docs"
+    "apidoc": "apidoc-swagger -i ./openapi.json -o docs",
+    "jsdoc": "./node_modules/jsdoc/jsdoc.js -c ./jsdoc.conf.json"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   "homepage": "https://github.com/hendrychjan/koishi-api#readme",
   "devDependencies": {
     "apidoc": "^0.51.0",
+    "better-docs": "^2.7.2",
     "jest": "^27.1.0",
     "jsdoc": "^3.6.10",
     "supertest": "^6.1.6"
@@ -45,6 +47,7 @@
     "nodemailer": "^6.7.3",
     "object-to-xml": "^2.0.0",
     "socket.io": "^4.4.1",
+    "swagger-jsdoc": "^6.2.0",
     "swagger-ui-express": "^4.3.0",
     "winston": "^3.7.2",
     "winston-mongodb": "^5.0.7",
