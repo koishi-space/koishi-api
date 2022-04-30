@@ -84,14 +84,14 @@ function validateActionRunners(payload) {
 function validateActionConnectors(payload) {
   const validationSchema = Joi.object({
     telegram: Joi.object({
-      chatId: Joi.string(),
-      botToken: Joi.string(),
+      chatId: Joi.string().allow(""),
+      botToken: Joi.string().allow(""),
     }),
     email: Joi.object({
-      host: Joi.string(),
-      user: Joi.string(),
-      password: Joi.string(),
-      recievers: Joi.array().items(Joi.string().email()),
+      host: Joi.string().allow(""),
+      user: Joi.string().allow(""),
+      password: Joi.string().allow(""),
+      recievers: Joi.array().items(Joi.string().email().allow("")),
     }),
   });
 
@@ -116,7 +116,6 @@ collectionActionsSchema.methods.runActions = async function (
     // Find the target column for an action
     let targetColumn = row.find((c) => c.column === action.column);
     if (targetColumn) {
-      console.log(targetColumn);
       // Perform a value check for the target column
       let triggered = _performCheck(
         targetColumn.data,
